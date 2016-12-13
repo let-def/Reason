@@ -48,7 +48,13 @@ let functionCallWithLabelsToBSObj ~loc callWithLabels =
 (* props might contain `createElement` calls too; parse them recursively *)
 let recursivelyMapPropsCall ~props ~mapper =
   props
-  |> List.map (fun (label, expression) -> (label, mapper.expr mapper expression))
+  |> List.map (fun (label, expression) ->
+    let lbl = match label with
+    | Labelled l -> l
+    | Optional l -> "?" ^ l
+    | Nolabel -> ""
+    in
+  (lbl, mapper.expr mapper expression))
 
 (* given that we're gathered all we have, construct the AST for `ReactRe.create(DOM|Composite)Element ?? ?? [|childrenHere|]` *)
 let constructReactReCall ~isComposite ~loc ~attributes ~callNode ~props ~children ~mapper =
@@ -63,11 +69,11 @@ let constructReactReCall ~isComposite ~loc ~attributes ~callNode ~props ~childre
     })
     (* "div" or fooComponentEscapeHatch_ *)
     [
-      ("", callNode);
+      (Nolabel, callNode);
       (* [%bs.obj {props1: bla, props2: blabla}] *)
-      ("", props);
+      (Nolabel, props);
       (* [|moreCreateElementCallsHere|] *)
-      ("", Exp.array (
+      (Nolabel, Exp.array (
           listToArray children |> List.map (fun a -> mapper.expr mapper a)
         )
       )
@@ -116,7 +122,7 @@ let jsxMapper argv = {
               wrap
               (
                 (propsAndChildren |> List.map (fun (label, expr) -> (label, mapper.expr mapper expr)))
-                  @ [(""), Exp.construct ~loc {loc; txt = Lident "()"} None]
+                  @ [(Nolabel), Exp.construct ~loc {loc; txt = Lident "()"} None]
               )
           (* div prop1::foo prop2:bar [] *)
           (* the div is Pexp_ident "div" *)
@@ -137,13 +143,13 @@ let jsxMapper argv = {
                 Exp.apply
                   ~loc
                   (Exp.ident ~loc {loc; txt = Ldot (Ldot (Lident "Js", "Null"), "return")})
-                  [("", functionCallWithLabelsToBSObj ~loc (recursivelyMapPropsCall ~props ~mapper))]
+                  [(Nolabel, functionCallWithLabelsToBSObj ~loc (recursivelyMapPropsCall ~props ~mapper))]
             in
             (* turn `div` into `"div"` and `foo_` into `foo_` (notice no quotes) *)
             let isComposite = (String.get lowercaseIdentifier (String.length lowercaseIdentifier - 1)) = '_' in
             let callNode = if isComposite
               then Exp.ident ~loc {loc; txt = Lident lowercaseIdentifier}
-              else Exp.constant ~loc (Const_string (lowercaseIdentifier, None))
+              else Exp.constant ~loc (Pconst_string (lowercaseIdentifier, None))
             in
             constructReactReCall
               ~isComposite
