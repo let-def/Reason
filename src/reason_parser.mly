@@ -4501,7 +4501,7 @@ operator:
 ;
 %inline constr_ident:
     UIDENT                                      { $1 }
-/*  | LBRACKET RBRACKET                           { "[]" } */
+  | LBRACKET RBRACKET                           { "[]" }
   | LPAREN RPAREN                               { "()" }
   | COLONCOLON                                  { "::" }
 /*  | LPAREN COLONCOLON RPAREN                    { "::" } */
