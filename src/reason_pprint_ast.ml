@@ -4945,16 +4945,8 @@ class printer  ()= object(self:'self)
         ]
 
   method exception_declaration ed =
-    let pcd_name = ed.pext_name in
-    let pcd_loc = ed.pext_loc in
-    let pcd_attributes = List.filter (fun (loc, _) -> loc.txt <> "ocaml.doc") ed.pext_attributes in
-    let exn_arg = match ed.pext_kind with
-      | Pext_decl (args, type_opt) ->
-          let pcd_args, pcd_res = args, type_opt in
-          [self#type_variant_leaf_nobar {pcd_name; pcd_args; pcd_res; pcd_loc; pcd_attributes}]
-      | Pext_rebind id ->
-          [atom pcd_name.txt; atom "="; (self#longident_loc id)] in
-    makeList ~postSpace:true ((atom "exception")::exn_arg)
+    label ~space:true (atom "exception")
+      (self#extension_constructor ~print_bar:false ed)
 
   (*
     Note: that override doesn't appear in class_sig_field, but does occur in
@@ -5829,8 +5821,43 @@ class printer  ()= object(self:'self)
     ) in
     SourceMap(term.pstr_loc, item)
 
-  method type_extension x = atom "this is going to hurt..."
+  method extension_constructor ~print_bar ec =
+    let ec =
+      let pcd_name = ec.pext_name in
+      let pcd_loc = ec.pext_loc in
+      let pcd_attributes = List.filter (fun (loc, _) -> loc.txt <> "ocaml.doc") ec.pext_attributes in
+      match ec.pext_kind with
+      | Pext_decl (args, type_opt) ->
+        let pcd_args, pcd_res = args, type_opt in
+        [self#type_variant_leaf_nobar {pcd_name; pcd_args; pcd_res; pcd_loc; pcd_attributes}]
+      | Pext_rebind id ->
+        [atom pcd_name.txt; atom "="; (self#longident_loc id)]
+    in
+    makeList ~postSpace:true (if print_bar then atom "|" :: ec else ec)
 
+  method type_extension x =
+    let type_path_params =
+      let binding = makeList ~postSpace:true
+          [atom "type"; self#longident_loc x.ptyext_path] in
+      if x.ptyext_params = [] then binding
+      else
+        let formattedTypeParams =
+          makeList ~postSpace:true ~break:IfNeed ~inline:(true, true)
+            (List.map self#type_param x.ptyext_params) in
+        label ~space:true binding formattedTypeParams
+    in
+    let constructors = match x.ptyext_constructors with
+      | [constr] -> self#extension_constructor ~print_bar:false constr
+      | constrs -> makeList ~break:IfNeed ~postSpace:true ~inline:(true, true)
+                     (List.map (self#extension_constructor ~print_bar:true) constrs)
+    in
+    let constructors =
+      match x.ptyext_private with
+      | Public -> [constructors]
+      | Private -> [atom "pri"; constructors]
+    in
+    self#attach_std_item_attrs x.ptyext_attributes
+      (makeList ~postSpace:true (type_path_params :: atom "+=" :: constructors))
 
   (* [allowUnguardedSequenceBodies] allows sequence expressions {} to the right of `=>` to not
      be guarded in `{}` braces. *)
