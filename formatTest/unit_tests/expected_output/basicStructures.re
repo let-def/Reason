@@ -540,8 +540,7 @@ type myFuncType = (int, int) => int;
 let myFunc: myFuncType = fun (a, b) => a + b;
 
 let funcWithTypeLocallyAbstractTypes
-    (type atype)
-    (type btype)
+    (type atype btype)
     a
     b
     (c: atype => btype => unit) =>
