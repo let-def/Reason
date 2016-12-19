@@ -574,6 +574,10 @@ let varify_constructors var_names t =
   in
   loop t
 
+let pexp_newtypes ?loc newtypes exp =
+  List.fold_right (fun newtype exp -> mkexp ?loc (Pexp_newtype (newtype, exp)))
+    newtypes exp
+
 (**
   I believe that wrap_type_annotation will automatically generate the type
   arguments (type a) (type b) based on what was listed before the dot in a
@@ -581,10 +585,7 @@ let varify_constructors var_names t =
  *)
 let wrap_type_annotation newtypes core_type body =
   let exp = mkexp(Pexp_constraint(body,core_type)) in
-  let exp =
-    List.fold_right (fun newtype exp -> mkexp (Pexp_newtype (newtype, exp)))
-      newtypes exp
-  in
+  let exp = pexp_newtypes newtypes exp in
   let typ = mktyp ~ghost:true (Ptyp_poly(newtypes,varify_constructors newtypes core_type)) in
   (exp, typ)
 
@@ -2695,8 +2696,8 @@ _expr:
       let (l,o,p) = $2 in
       mkexp (Pexp_fun(l, o, p, $3))
     }
-  | FUN LPAREN TYPE LIDENT RPAREN fun_def
-      { mkexp (Pexp_newtype($4, $6)) }
+  | FUN LPAREN TYPE lident_list RPAREN fun_def
+      { pexp_newtypes $4 $6 }
   /* List style rules like this often need a special precendence
      such as below_BAR in order to let the entire list "build up"
    */
@@ -3244,8 +3245,8 @@ _curried_binding_return_typed:
          let loc = mklocation $symbolstartpos $endpos in
          let (l, o, p) = $1 in mkexp ~loc (Pexp_fun(l, o, p, $2))
       }
-  | LPAREN TYPE LIDENT RPAREN curried_binding_return_typed_
-      { mkexp(Pexp_newtype($3, $5)) }
+  | LPAREN TYPE lident_list RPAREN curried_binding_return_typed_
+      { pexp_newtypes $3 $5 }
 ;
 
 curried_binding_return_typed_:
@@ -3289,10 +3290,10 @@ curried_binding:
         let (l, o, p) = $1 in
         mkexp ~loc (Pexp_fun(l, o, p, $2))
       }
-  | LPAREN TYPE LIDENT RPAREN curried_binding_return_typed_
+  | LPAREN TYPE lident_list RPAREN curried_binding_return_typed_
       {
         let loc = mklocation $symbolstartpos $endpos in
-        mkexp ~loc (Pexp_newtype($3, $5))
+        pexp_newtypes ~loc $3 $5
       }
 ;
 
@@ -3345,10 +3346,10 @@ fun_def:
        let loc = mklocation $symbolstartpos $endpos in
        mkexp ~ghost:true ~loc (Pexp_fun(l, o, p, $2))
       }
-  | LPAREN TYPE LIDENT RPAREN fun_def
+  | LPAREN TYPE lident_list RPAREN fun_def
       {
         let loc = mklocation $symbolstartpos $endpos in
-        mkexp ~loc (Pexp_newtype($3, $5))
+        pexp_newtypes ~loc $3 $5
       }
 ;
 
