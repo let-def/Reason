@@ -22,7 +22,7 @@ let makeTokens grammar data => {
       }
     | "Constructor" => "ctor"
     | "Signature" => "module type"
-    | kind => String.lowercase kind
+    | kind => String.lowercase_ascii kind
     };
   let nameToken =
     switch merlinKind {
