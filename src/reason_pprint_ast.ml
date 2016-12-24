@@ -2540,6 +2540,10 @@ class printer  ()= object(self:'self)
       else
         ct
     in
+    let args = match pcd_args with
+      | Pcstr_record r -> [makeList [self#record_declaration r]]
+      | Pcstr_tuple l -> List.mapi ampersand_helper l
+    in
     let gadtRes = match pcd_res with
       | None -> None
       | Some x -> Some (
@@ -2556,10 +2560,6 @@ class printer  ()= object(self:'self)
     let add_bar name args =
       let lbl = label ~space:true name args in
       makeList ~postSpace:true (if print_bar then [atom "|"; lbl] else [lbl])
-    in
-    let args = match pcd_args with
-      | Pcstr_record r -> [makeList [self#record_declaration r]]
-      | Pcstr_tuple l -> List.mapi ampersand_helper l
     in
     let everything = match (args, gadtRes) with
       | ([], None) -> barName
@@ -3070,9 +3070,6 @@ class printer  ()= object(self:'self)
   method label_exp (l,opt,p) =
     match l with
     | Nolabel -> self#simple_pattern p (*single case pattern parens needed here *)
-    | Labelled l ->
-        let lbl = pun_labelled_pattern p l in
-        formatLabeledArgument (atom lbl) "" (self#simple_pattern p)
     | Optional lbl ->
         let lbl = pun_labelled_pattern p lbl in
         (formatLabeledArgument
@@ -3081,6 +3078,9 @@ class printer  ()= object(self:'self)
            (label
              (makeList [(self#simple_pattern p); atom "="])
              (match opt with None -> (atom "?") | Some o -> (self#simplifyUnparseExpr o))))
+    | Labelled l ->
+        let lbl = pun_labelled_pattern p l in
+        formatLabeledArgument (atom lbl) "" (self#simple_pattern p)
 
   method access op cls e1 e2 = makeList ~interleaveComments:false [
     (* Important that this be not breaking - at least to preserve same
