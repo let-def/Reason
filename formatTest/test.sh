@@ -68,6 +68,7 @@ function warning() {
 function setup_test_dir() {
     echo "Setting up test dirs actual_output alongside the tests' expected_output"
     mkdir -p $UNIT_TEST_OUTPUT $TYPE_TEST_OUTPUT $ERROR_TEST_OUTPUT
+    rm -f "$FAILED_TESTS"
     touch $FAILED_TESTS
 }
 
@@ -313,39 +314,82 @@ function error_test() {
     echo
 }
 
-cd $UNIT_TEST_INPUT && find . -type f \( -name "*.re*" -or -name "*.ml*" \) | while read file; do
-        unit_test $file $UNIT_TEST_INPUT $UNIT_TEST_OUTPUT $UNIT_TEST_EXPECTED_OUTPUT
-        if ! [[ $? -eq 0 ]]; then
-            echo "$file -- failed unit_test" >> $FAILED_TESTS
-        fi
+run_unit_test()
+{
+  file="$1"
+  unit_test $file $UNIT_TEST_INPUT $UNIT_TEST_OUTPUT $UNIT_TEST_EXPECTED_OUTPUT
+  if ! [[ $? -eq 0 ]]; then
+      echo "$file -- failed unit_test" >> $FAILED_TESTS
+  fi
 
-        idempotent_test $file $UNIT_TEST_INPUT $UNIT_TEST_OUTPUT $UNIT_TEST_EXPECTED_OUTPUT
-        if ! [[ $? -eq 0 ]]; then
-            echo "$file -- failed idempotent_test" >> $FAILED_TESTS
-        fi
-done
+  idempotent_test $file $UNIT_TEST_INPUT $UNIT_TEST_OUTPUT $UNIT_TEST_EXPECTED_OUTPUT
+  if ! [[ $? -eq 0 ]]; then
+      echo "$file -- failed idempotent_test" >> $FAILED_TESTS
+  fi
+}
 
-cd $TYPE_TEST_INPUT && find . -type f \( -name "*.re*" -or -name "*.ml*" \) | sort | while read file; do
-        typecheck_test $file $TYPE_TEST_INPUT $TYPE_TEST_OUTPUT
-        if ! [[ $? -eq 0 ]]; then
-            echo "$file -- failed typecheck_test" >> $FAILED_TESTS
-        fi
-        unit_test $file $TYPE_TEST_INPUT $TYPE_TEST_OUTPUT $TYPE_TEST_EXPECTED_OUTPUT
-        if ! [[ $? -eq 0 ]]; then
-            echo "$file -- failed unit_test" >> $FAILED_TESTS
-        fi
-        idempotent_test $file $TYPE_TEST_INPUT $TYPE_TEST_OUTPUT $TYPE_TEST_EXPECTED_OUTPUT
-        if ! [[ $? -eq 0 ]]; then
-            echo "$file -- failed idempotent_test" >> $FAILED_TESTS
-        fi
-done
+run_typecheck_test()
+{
+  file="$1"
+  typecheck_test $file $TYPE_TEST_INPUT $TYPE_TEST_OUTPUT
+  if ! [[ $? -eq 0 ]]; then
+      echo "$file -- failed typecheck_test" >> $FAILED_TESTS
+  fi
+  unit_test $file $TYPE_TEST_INPUT $TYPE_TEST_OUTPUT $TYPE_TEST_EXPECTED_OUTPUT
+  if ! [[ $? -eq 0 ]]; then
+      echo "$file -- failed unit_test" >> $FAILED_TESTS
+  fi
+  idempotent_test $file $TYPE_TEST_INPUT $TYPE_TEST_OUTPUT $TYPE_TEST_EXPECTED_OUTPUT
+  if ! [[ $? -eq 0 ]]; then
+      echo "$file -- failed idempotent_test" >> $FAILED_TESTS
+  fi
+}
 
-cd $ERROR_TEST_INPUT && find . -type f \( -name "*.re*" -or -name "*.ml*" \) | while read file; do
-        error_test $file $ERROR_TEST_INPUT $ERROR_TEST_OUTPUT $ERROR_TEST_EXPECTED_OUTPUT
-        if ! [[ $? -eq 0 ]]; then
-            echo "$file -- failed error_test" >> $FAILED_TESTS
-        fi
-done
+run_error_test()
+{
+  file="$1"
+  error_test $file $ERROR_TEST_INPUT $ERROR_TEST_OUTPUT $ERROR_TEST_EXPECTED_OUTPUT
+  if ! [[ $? -eq 0 ]]; then
+      echo "$file -- failed error_test" >> $FAILED_TESTS
+  fi
+}
+
+case "${1-}" in
+  help|-help|--help)
+    cat <<EOF
+Usage: $0 [ test-regexp ]
+If test-regexp is specified, only tests matching this regexp will be run.
+EOF
+    exit 1
+    ;;
+  "")
+  test-filter()
+  {
+    cat
+  }
+  ;;
+  *)
+  TEST_RE="$1"
+  test-filter()
+  {
+    grep -- "$TEST_RE"
+  }
+esac
+
+list-tests()
+{
+  dir="$1"
+  cd "$dir" && find . -type f \( -name "*.re*" -or -name "*.ml*" \) | test-filter
+}
+
+list-tests $UNIT_TEST_INPUT |
+while read file; do run_unit_test "$file"; done
+
+list-tests $TYPE_TEST_INPUT | sort |
+while read file; do run_typecheck_test "$file"; done
+
+list-tests $ERROR_TEST_INPUT |
+while read file; do run_error_test "$file"; done
 
 if [[ -s $FAILED_TESTS ]]; then
   warning "Failed tests:"
