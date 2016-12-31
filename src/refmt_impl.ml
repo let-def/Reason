@@ -4,8 +4,9 @@ open Lexing
 
 exception Invalid_config of string
 
-
 let default_print_width = 100
+
+let ocaml_version = ref None
 
 (* Note: filename should only be used with .ml files. See reason_toolchain. *)
 let defaultImplementationParserFor use_stdin filename =
@@ -35,19 +36,30 @@ let reasonBinaryParser use_stdin filename =
   let (magic_number, filename, ast, comments, parsedAsML, parsedAsInterface) = input_value chan in
   ((ast, comments), parsedAsML, parsedAsInterface)
 
-let ocamlBinaryParser use_stdin filename parsedAsInterface =
-  let chan =
-    match use_stdin with
-      | true -> stdin
-      | false ->
-          let file_chan = open_in filename in
-          seek_in file_chan 0;
-          file_chan
+let ocamlBinaryParser use_stdin filename =
+  let chan = match use_stdin with
+    | true -> stdin
+    | false ->
+      let file_chan = open_in filename in
+      seek_in file_chan 0;
+      file_chan
   in
-  let _ = really_input_string chan (String.length Config.ast_impl_magic_number) in
-  let _ = input_value chan in
-  let ast = input_value chan in
-  ((ast, []), true, parsedAsInterface)
+  match Migrate_parsetree_reader.from_channel chan with
+  | exception exn ->
+    close_in_noerr chan;
+    raise exn
+  | _filename, tree ->
+    close_in_noerr chan;
+    if !ocaml_version = None then
+      ocaml_version := Some (Migrate_parsetree_reader.tree_version tree);
+    let ast, parsedAsInterface =
+      match Migrate_parsetree_reader.migrate_to_404 tree with
+      | Migrate_parsetree_def.OCaml404.Impl tree ->
+        Obj.magic tree, false
+      | Migrate_parsetree_def.OCaml404.Intf tree ->
+        Obj.magic tree, true
+    in
+    ((ast, []), true, parsedAsInterface)
 
 let usage = {|Reason: Meta Language Utility
 
@@ -92,6 +104,13 @@ let () =
     "-print-width", Arg.Int (fun x -> print_width := Some x), "<print-width>, wrapping width for printing the AST";
     "-heuristics-file", Arg.String (fun x -> heuristics_file := Some x),
     "<path>, load path as a heuristics file to specify which constructors are defined with multi-arguments. Mostly used in removing [@implicit_arity] introduced from OCaml conversion.\n\t\texample.txt:\n\t\tConstructor1\n\t\tConstructor2";
+    "-ocaml-version", Arg.Int (function
+        | 402 -> ocaml_version := Some `OCaml402
+        | 403 -> ocaml_version := Some `OCaml403
+        | 404 -> ocaml_version := Some `OCaml404
+        | n -> raise (Arg.Bad (string_of_int n ^ " is not a valid OCaml version"))
+      ),
+    "<version>, target binary for OCaml <version> (402, 403, 404)";
     "-h", Arg.Unit (fun () -> print_help := true), " Display this list of options";
   ] in
   let () = Arg.parse options (fun arg -> filename := arg) usage in
@@ -138,7 +157,7 @@ let () =
       let ((ast, comments), parsedAsML, parsedAsInterface) = match !prse with
         | None -> (defaultInterfaceParserFor use_stdin filename)
         | Some "binary_reason" -> reasonBinaryParser use_stdin filename
-        | Some "binary" -> ocamlBinaryParser use_stdin filename true
+        | Some "binary" -> ocamlBinaryParser use_stdin filename
         | Some "ml" -> ((Reason_toolchain.ML.canonical_interface_with_comments (Reason_toolchain.setup_lexbuf use_stdin filename)), true, true)
         | Some "re" -> ((Reason_toolchain.JS.canonical_interface_with_comments (Reason_toolchain.setup_lexbuf use_stdin filename)), false, true)
         | Some s -> (
@@ -167,9 +186,13 @@ let () =
         )
         | Some "binary"
         | None -> fun (ast, comments) -> (
-          output_string stdout Config.ast_intf_magic_number;
-          output_value  stdout filename;
-          output_value  stdout ast
+            let tree = Migrate_parsetree_def.(OCaml404(OCaml404.Intf ast)) in
+            let tree = match !ocaml_version with
+              | None -> tree
+              | Some version ->
+                Migrate_parsetree_reader.migrate_to_version tree version
+            in
+            Migrate_parsetree_reader.to_channel stdout filename tree
         )
         | Some "ast" -> fun (ast, comments) -> (
           Printast.interface Format.std_formatter ast
@@ -188,7 +211,7 @@ let () =
       let ((ast, comments), parsedAsML, parsedAsInterface) = match !prse with
         | None -> (defaultImplementationParserFor use_stdin filename)
         | Some "binary_reason" -> reasonBinaryParser use_stdin filename
-        | Some "binary" -> ocamlBinaryParser use_stdin filename false
+        | Some "binary" -> ocamlBinaryParser use_stdin filename
         | Some "ml" -> (Reason_toolchain.ML.canonical_implementation_with_comments (Reason_toolchain.setup_lexbuf use_stdin filename), true, false)
         | Some "re" -> (Reason_toolchain.JS.canonical_implementation_with_comments (Reason_toolchain.setup_lexbuf use_stdin filename), false, false)
         | Some s -> (
@@ -216,9 +239,13 @@ let () =
         )
         | Some "binary"
         | None -> fun (ast, comments) -> (
-          output_string stdout Config.ast_impl_magic_number;
-          output_value stdout filename;
-          output_value stdout ast
+            let tree = Migrate_parsetree_def.(OCaml404(OCaml404.Impl ast)) in
+            let tree = match !ocaml_version with
+              | None -> tree
+              | Some version ->
+                Migrate_parsetree_reader.migrate_to_version tree version
+            in
+            Migrate_parsetree_reader.to_channel stdout filename tree
         )
         | Some "ast" -> fun (ast, comments) -> (
           Printast.implementation Format.std_formatter ast
