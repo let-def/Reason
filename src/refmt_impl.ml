@@ -6,7 +6,7 @@ exception Invalid_config of string
 
 let default_print_width = 100
 
-let ocaml_version = ref Migrate_parsetree_def.toolchain_version
+let ocaml_version = ref Migrate_parsetree.Ast_current.version
 
 (* Note: filename should only be used with .ml files. See reason_toolchain. *)
 let defaultImplementationParserFor use_stdin filename =
@@ -44,17 +44,17 @@ let ocamlBinaryParser use_stdin filename =
       seek_in file_chan 0;
       file_chan
   in
-  match Migrate_parsetree_reader.from_channel chan with
+  match Migrate_parsetree.from_channel chan with
   | exception exn ->
     close_in_noerr chan;
     raise exn
   | _filename, tree ->
     close_in_noerr chan;
     let ast, parsedAsInterface =
-      match Migrate_parsetree_reader.migrate_to_404 tree with
-      | Migrate_parsetree_def.OCaml404.Impl tree ->
+      match Migrate_parsetree.migrate_to_404 tree with
+      | Migrate_parsetree.Impl tree ->
         Obj.magic tree, false
-      | Migrate_parsetree_def.OCaml404.Intf tree ->
+      | Migrate_parsetree.Intf tree ->
         Obj.magic tree, true
     in
     ((ast, []), true, parsedAsInterface)
@@ -103,9 +103,9 @@ let () =
     "-heuristics-file", Arg.String (fun x -> heuristics_file := Some x),
     "<path>, load path as a heuristics file to specify which constructors are defined with multi-arguments. Mostly used in removing [@implicit_arity] introduced from OCaml conversion.\n\t\texample.txt:\n\t\tConstructor1\n\t\tConstructor2";
     "-ocaml-version", Arg.Int (function
-        | 402 -> ocaml_version := `OCaml402
-        | 403 -> ocaml_version := `OCaml403
-        | 404 -> ocaml_version := `OCaml404
+        | 402 -> ocaml_version := Migrate_parsetree.OCaml_402
+        | 403 -> ocaml_version := Migrate_parsetree.OCaml_403
+        | 404 -> ocaml_version := Migrate_parsetree.OCaml_404
         | n -> raise (Arg.Bad (string_of_int n ^ " is not a valid OCaml version"))
       ),
     "<version>, target binary for OCaml <version> (402, 403, 404)";
@@ -184,9 +184,9 @@ let () =
         )
         | Some "binary"
         | None -> fun (ast, comments) -> (
-            let tree = Migrate_parsetree_def.(OCaml404(OCaml404.Intf ast)) in
-            let tree = Migrate_parsetree_reader.migrate_to_version tree !ocaml_version in
-            Migrate_parsetree_reader.to_channel stdout filename tree
+            let tree = Migrate_parsetree.(Ast_404(Intf ast)) in
+            let tree = Migrate_parsetree.migrate_to_version tree !ocaml_version in
+            Migrate_parsetree.to_channel stdout filename tree
         )
         | Some "ast" -> fun (ast, comments) -> (
           Printast.interface Format.std_formatter ast
@@ -233,9 +233,9 @@ let () =
         )
         | Some "binary"
         | None -> fun (ast, comments) -> (
-            let tree = Migrate_parsetree_def.(OCaml404(OCaml404.Impl ast)) in
-            let tree = Migrate_parsetree_reader.migrate_to_version tree !ocaml_version in
-            Migrate_parsetree_reader.to_channel stdout filename tree
+            let tree = Migrate_parsetree.(Ast_404(Impl ast)) in
+            let tree = Migrate_parsetree.migrate_to_version tree !ocaml_version in
+            Migrate_parsetree.to_channel stdout filename tree
         )
         | Some "ast" -> fun (ast, comments) -> (
           Printast.implementation Format.std_formatter ast
