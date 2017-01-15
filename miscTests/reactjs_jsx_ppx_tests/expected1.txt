@@ -1,25 +1,22 @@
 type dom = {
-  createElement: unit -> unit;}
-let div = { createElement = (fun ()  -> ()) }
-let _ = div.createElement ()
-module Gah = struct let createElement () = () end
-let _ = Gah.createElement ()
-let asd = ((Bar.createElement ~foo:1 ~bar:2 ["a"; "b"])[@jsxa ][@foo ])
-let asd = ((Bar.createElement ~foo:1 ~bar:2 ["a"; "b"] ())[@foo ])
-let _ = Baz.Beee.createElement ~baz:2 ["a"; "b"] ()
-let _ = Bar.createElement [foo] ()
-let _ = Bar.createElement ~foo:1 ~bar:2 [] ()
-let _ =
-  Bar.createElement
+  createElement: unit -> unit }
+let div = { createElement = (fun ()  -> ()) } 
+;;div.createElement ()
+module Gah = struct let createElement () = ()  end
+;;Gah.createElement ()
+let asd = ((Bar.createElement ~foo:1 ~bar:2 ["a"; "b"])[@jsxa ][@foo ]) 
+let asd = ((Bar.createElement ~foo:1 ~bar:2 ["a"; "b"] ())[@foo ]) 
+;;Baz.Beee.createElement ~baz:2 ["a"; "b"] ()
+;;Bar.createElement [foo] ()
+;;Bar.createElement ~foo:1 ~bar:2 [] ()
+;;Bar.createElement
     ~foo:(Baz.createElement ~baz:(Baaz.createElement [] ()) [] ()) [] ()
-let _ = Div.createElement ~foo:1 ~bar:2 [] ()
-let _ =
-  Bar.createElement
+;;Div.createElement ~foo:1 ~bar:2 [] ()
+;;Bar.createElement
     [Baz.Beee.createElement ~baz:2 ~kek:(Foo.createElement [] ()) ["a"; "b"]
        ();
     Bar.createElement [] ()] ()
-let _ =
-  ReactRe.createDOMElement "bar"
+;;ReactRe.createDOMElement "bar"
     (Js.Null.return
        ([%bs.obj
           {
@@ -28,8 +25,7 @@ let _ =
               (ReactRe.createDOMElement "baz"
                  (Js.Null.return ([%bs.obj { qux = 2 }])) [||])
           }])) [||]
-let _ =
-  ReactRe.createCompositeElement bar_
+;;ReactRe.createCompositeElement bar_
     (Js.Null.return
        ([%bs.obj
           {
