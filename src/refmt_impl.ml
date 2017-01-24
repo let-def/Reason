@@ -45,10 +45,15 @@ let ocamlBinaryParser use_stdin filename =
       file_chan
   in
   match Migrate_parsetree.from_channel chan with
-  | exception exn ->
+  | Result.Error err ->
     close_in_noerr chan;
-    raise exn
-  | _filename, tree ->
+    begin match err with
+      | Migrate_parsetree.Not_a_binary_ast _ ->
+        failwith (filename ^ " is not a valid ast")
+      | Migrate_parsetree.Unknown_version version ->
+        failwith (filename ^ " has unknown version " ^ version)
+    end
+  | Result.Ok (_filename, tree) ->
     close_in_noerr chan;
     let ast, parsedAsInterface =
       match Migrate_parsetree.migrate_to_404 tree with
