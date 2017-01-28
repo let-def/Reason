@@ -9,8 +9,10 @@
 (* Why do we need a transform, instead of just using the previous
   Foo.createElement format? Because that one currently doesn't work well for
   the existing React.js *)
-open Ast_mapper
+module Main_mapper = Ast_mapper
+open Migrate_parsetree.OCaml_404.Ast
 open Ast_helper
+open Ast_mapper
 open Asttypes
 open Parsetree
 open Longident
@@ -100,84 +102,84 @@ let splitPropsCallLabelsFromChildren propsAndChildren =
     (Some actualProps, reactChildren)
 
 (* TODO: some line number might still be wrong *)
-let jsxMapper argv = {
-  default_mapper with
-  expr = (fun mapper expression -> match expression with
-    (* spotted a function application! Does it have the @JSX attribute? *)
-    | {
-        pexp_desc = Pexp_apply ({pexp_desc = createElementWrap} as wrap, propsAndChildren);
-        pexp_attributes
-      } when Syntax_util.attribute_exists "JSX" pexp_attributes ->
-        (match createElementWrap with
-        | Pexp_ident fooCreateElement ->
-          (match fooCreateElement with
-          | {txt = Lident "createElement"} ->
-            raise (Invalid_argument "JSX: `createElement` should be preceeded by a module name.")
-          (* Foo.createElement prop1::foo prop2:bar [] *)
-          | {loc; txt = Ldot (moduleNames, "createElement")} ->
-            let attrs = pexp_attributes |> List.filter (fun (attribute, _) -> attribute.txt <> "JSX") in
-            Exp.apply
-              ~loc
-              ~attrs
-              wrap
-              (
-                (propsAndChildren |> List.map (fun (label, expr) -> (label, mapper.expr mapper expr)))
-                  @ [(Nolabel), Exp.construct ~loc {loc; txt = Lident "()"} None]
-              )
-          (* div prop1::foo prop2:bar [] *)
-          (* the div is Pexp_ident "div" *)
-          (* similar code to the above case, with a few exceptions *)
-          | {loc; txt = Lident lowercaseIdentifier} ->
-            let (propsWithLabels, children) =
-              splitPropsCallLabelsFromChildren propsAndChildren
-            in
-            let propsOrNull = match propsWithLabels with
-              | None ->
-                (* if there's no prop, transform to `Js.null` *)
-                Exp.ident ~loc {
-                  loc;
-                  txt = Ldot (Lident "Js", "null")
-                }
-              | Some props ->
-                (* Js.Null.return [bs.obj {foo: bar, baz: qux}] *)
+let jsxMapper argv = Reason_toolchain.To_current.copy_mapper {
+    default_mapper with
+    expr = (fun mapper expression -> match expression with
+        (* spotted a function application! Does it have the @JSX attribute? *)
+        | {
+          pexp_desc = Pexp_apply ({pexp_desc = createElementWrap} as wrap, propsAndChildren);
+          pexp_attributes
+        } when Syntax_util.attribute_exists "JSX" pexp_attributes ->
+          (match createElementWrap with
+           | Pexp_ident fooCreateElement ->
+             (match fooCreateElement with
+              | {txt = Lident "createElement"} ->
+                raise (Invalid_argument "JSX: `createElement` should be preceeded by a module name.")
+              (* Foo.createElement prop1::foo prop2:bar [] *)
+              | {loc; txt = Ldot (moduleNames, "createElement")} ->
+                let attrs = pexp_attributes |> List.filter (fun (attribute, _) -> attribute.txt <> "JSX") in
                 Exp.apply
                   ~loc
-                  (Exp.ident ~loc {loc; txt = Ldot (Ldot (Lident "Js", "Null"), "return")})
-                  [(Nolabel, functionCallWithLabelsToBSObj ~loc (recursivelyMapPropsCall ~props ~mapper))]
-            in
-            (* turn `div` into `"div"` and `foo_` into `foo_` (notice no quotes) *)
-            let isComposite = (String.get lowercaseIdentifier (String.length lowercaseIdentifier - 1)) = '_' in
-            let callNode = if isComposite
-              then Exp.ident ~loc {loc; txt = Lident lowercaseIdentifier}
-              else Exp.constant ~loc (Pconst_string (lowercaseIdentifier, None))
-            in
-            constructReactReCall
-              ~isComposite
-              ~loc
-              ~attributes:pexp_attributes
-              ~callNode
-              ~props:propsOrNull ~children ~mapper
-          | {txt = Ldot (_, anythingNotCreateElement)} ->
-            raise (
-              Invalid_argument
-                ("JSX: the JSX attribute should be attached to a `YourModuleName.createElement` call. We saw `"
-                  ^ anythingNotCreateElement
-                  ^ "` instead"
+                  ~attrs
+                  wrap
+                  (
+                    (propsAndChildren |> List.map (fun (label, expr) -> (label, mapper.expr mapper expr)))
+                    @ [(Nolabel), Exp.construct ~loc {loc; txt = Lident "()"} None]
+                  )
+              (* div prop1::foo prop2:bar [] *)
+              (* the div is Pexp_ident "div" *)
+              (* similar code to the above case, with a few exceptions *)
+              | {loc; txt = Lident lowercaseIdentifier} ->
+                let (propsWithLabels, children) =
+                  splitPropsCallLabelsFromChildren propsAndChildren
+                in
+                let propsOrNull = match propsWithLabels with
+                  | None ->
+                    (* if there's no prop, transform to `Js.null` *)
+                    Exp.ident ~loc {
+                      loc;
+                      txt = Ldot (Lident "Js", "null")
+                    }
+                  | Some props ->
+                    (* Js.Null.return [bs.obj {foo: bar, baz: qux}] *)
+                    Exp.apply
+                      ~loc
+                      (Exp.ident ~loc {loc; txt = Ldot (Ldot (Lident "Js", "Null"), "return")})
+                      [(Nolabel, functionCallWithLabelsToBSObj ~loc (recursivelyMapPropsCall ~props ~mapper))]
+                in
+                (* turn `div` into `"div"` and `foo_` into `foo_` (notice no quotes) *)
+                let isComposite = (String.get lowercaseIdentifier (String.length lowercaseIdentifier - 1)) = '_' in
+                let callNode = if isComposite
+                  then Exp.ident ~loc {loc; txt = Lident lowercaseIdentifier}
+                  else Exp.constant ~loc (Pconst_string (lowercaseIdentifier, None))
+                in
+                constructReactReCall
+                  ~isComposite
+                  ~loc
+                  ~attributes:pexp_attributes
+                  ~callNode
+                  ~props:propsOrNull ~children ~mapper
+              | {txt = Ldot (_, anythingNotCreateElement)} ->
+                raise (
+                  Invalid_argument
+                    ("JSX: the JSX attribute should be attached to a `YourModuleName.createElement` call. We saw `"
+                     ^ anythingNotCreateElement
+                     ^ "` instead"
+                    )
                 )
-            )
-          | {txt = Lapply _} ->
-            (* don't think there's ever a case where this is reached *)
-            raise (
-              Invalid_argument "JSX: encountered a weird case while processing the code. Please report this!"
-            )
+              | {txt = Lapply _} ->
+                (* don't think there's ever a case where this is reached *)
+                raise (
+                  Invalid_argument "JSX: encountered a weird case while processing the code. Please report this!"
+                )
+             )
+           | anythingElseThanIdent ->
+             raise (
+               Invalid_argument "JSX: `createElement` should be preceeded by a simple, direct module name."
+             )
           )
-        | anythingElseThanIdent ->
-          raise (
-            Invalid_argument "JSX: `createElement` should be preceeded by a simple, direct module name."
-          )
-        )
-    (* Delegate to the default mapper, a deep identity traversal *)
-    | x -> default_mapper.expr mapper x)
-}
+        (* Delegate to the default mapper, a deep identity traversal *)
+        | x -> default_mapper.expr mapper x)
+  }
 
-let () = register "JSX" jsxMapper
+let () = Main_mapper.register "JSX" jsxMapper

@@ -1,12 +1,13 @@
 (* Portions Copyright (c) 2015-present, Facebook, Inc. All rights reserved. *)
 
 open Lexing
+open Migrate_parsetree
 
 exception Invalid_config of string
 
 let default_print_width = 100
 
-let ocaml_version = ref Migrate_parsetree.Ast_current.version
+let ocaml_version = ref (module Versions.OCaml_current: OCaml_version)
 
 (* Note: filename should only be used with .ml files. See reason_toolchain. *)
 let defaultImplementationParserFor use_stdin filename =
@@ -44,23 +45,24 @@ let ocamlBinaryParser use_stdin filename =
       seek_in file_chan 0;
       file_chan
   in
-  match Migrate_parsetree.from_channel chan with
+  match Ast_io.from_channel chan with
   | Result.Error err ->
     close_in_noerr chan;
     begin match err with
-      | Migrate_parsetree.Not_a_binary_ast _ ->
+      | Ast_io.Not_a_binary_ast _ ->
         failwith (filename ^ " is not a valid ast")
-      | Migrate_parsetree.Unknown_version version ->
+      | Ast_io.Unknown_version version ->
         failwith (filename ^ " has unknown version " ^ version)
     end
   | Result.Ok (_filename, tree) ->
     close_in_noerr chan;
-    let ast, parsedAsInterface =
-      match Migrate_parsetree.migrate_to_404 tree with
-      | Migrate_parsetree.Impl tree ->
-        Obj.magic tree, false
-      | Migrate_parsetree.Intf tree ->
-        Obj.magic tree, true
+    let ast, parsedAsInterface = match tree with
+      | Ast_io.Impl ((module V), tree) ->
+        let module Convert = Convert(V)(OCaml_404) in
+        Obj.magic (Convert.copy_structure tree), false
+      | Ast_io.Intf ((module V), tree) ->
+        let module Convert = Convert(V)(OCaml_404) in
+        Obj.magic (Convert.copy_signature tree), true
     in
     ((ast, []), true, parsedAsInterface)
 
@@ -108,9 +110,9 @@ let () =
     "-heuristics-file", Arg.String (fun x -> heuristics_file := Some x),
     "<path>, load path as a heuristics file to specify which constructors are defined with multi-arguments. Mostly used in removing [@implicit_arity] introduced from OCaml conversion.\n\t\texample.txt:\n\t\tConstructor1\n\t\tConstructor2";
     "-ocaml-version", Arg.Int (function
-        | 402 -> ocaml_version := Migrate_parsetree.OCaml_402
-        | 403 -> ocaml_version := Migrate_parsetree.OCaml_403
-        | 404 -> ocaml_version := Migrate_parsetree.OCaml_404
+        | 402 -> ocaml_version := (module OCaml_402)
+        | 403 -> ocaml_version := (module OCaml_403)
+        | 404 -> ocaml_version := (module OCaml_404)
         | n -> raise (Arg.Bad (string_of_int n ^ " is not a valid OCaml version"))
       ),
     "<version>, target binary for OCaml <version> (402, 403, 404)";
@@ -189,12 +191,14 @@ let () =
         )
         | Some "binary"
         | None -> fun (ast, comments) -> (
-            let tree = Migrate_parsetree.(Ast_404(Intf ast)) in
-            let tree = Migrate_parsetree.migrate_to_version tree !ocaml_version in
-            Migrate_parsetree.to_channel stdout filename tree
+            let (module V) = !ocaml_version in
+            let module Convert = Convert(OCaml_404)(V) in
+            Ast_io.to_channel stdout filename
+              (Ast_io.Intf ((module V), Convert.copy_signature ast))
         )
         | Some "ast" -> fun (ast, comments) -> (
-          Printast.interface Format.std_formatter ast
+            let module Convert = Convert(OCaml_404)(Versions.OCaml_current) in
+            Printast.interface Format.std_formatter (Convert.copy_signature ast)
         )
         (* If you don't wrap the function in parens, it's a totally different
          * meaning #thanksOCaml *)
@@ -238,12 +242,14 @@ let () =
         )
         | Some "binary"
         | None -> fun (ast, comments) -> (
-            let tree = Migrate_parsetree.(Ast_404(Impl ast)) in
-            let tree = Migrate_parsetree.migrate_to_version tree !ocaml_version in
-            Migrate_parsetree.to_channel stdout filename tree
+            let (module V) = !ocaml_version in
+            let module Convert = Convert(OCaml_404)(V) in
+            Ast_io.to_channel stdout filename
+              (Ast_io.Impl ((module V), Convert.copy_structure ast))
         )
         | Some "ast" -> fun (ast, comments) -> (
-          Printast.implementation Format.std_formatter ast
+            let module Convert = Convert(OCaml_404)(Versions.OCaml_current) in
+            Printast.implementation Format.std_formatter (Convert.copy_structure ast)
         )
         (* If you don't wrap the function in parens, it's a totally different
          * meaning #thanksOCaml *)

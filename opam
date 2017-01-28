@@ -27,10 +27,11 @@ depends: [
   "menhir"       {>= "20160303"}
   "merlin"       {>= "2.5.0"}
   "merlin-extend"{>= "0.3"}
+  "result"
 ]
 depopts: [
 ]
 conflicts: [
   "utop" {< "1.17"}
 ]
-available: [ ocaml-version = "4.04.0" ]
+available: [ ocaml-version >= "4.02" & ocaml-version <= "4.04" ]
