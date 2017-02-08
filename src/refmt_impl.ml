@@ -58,9 +58,11 @@ let ocamlBinaryParser use_stdin filename =
     close_in_noerr chan;
     let ast, parsedAsInterface = match tree with
       | Ast_io.Impl ((module V), tree) ->
+        ocaml_version := (module V);
         let module Convert = Convert(V)(OCaml_404) in
         Obj.magic (Convert.copy_structure tree), false
       | Ast_io.Intf ((module V), tree) ->
+        ocaml_version := (module V);
         let module Convert = Convert(V)(OCaml_404) in
         Obj.magic (Convert.copy_signature tree), true
     in
@@ -109,13 +111,6 @@ let () =
     "-print-width", Arg.Int (fun x -> print_width := Some x), "<print-width>, wrapping width for printing the AST";
     "-heuristics-file", Arg.String (fun x -> heuristics_file := Some x),
     "<path>, load path as a heuristics file to specify which constructors are defined with multi-arguments. Mostly used in removing [@implicit_arity] introduced from OCaml conversion.\n\t\texample.txt:\n\t\tConstructor1\n\t\tConstructor2";
-    "-ocaml-version", Arg.Int (function
-        | 402 -> ocaml_version := (module OCaml_402)
-        | 403 -> ocaml_version := (module OCaml_403)
-        | 404 -> ocaml_version := (module OCaml_404)
-        | n -> raise (Arg.Bad (string_of_int n ^ " is not a valid OCaml version"))
-      ),
-    "<version>, target binary for OCaml <version> (402, 403, 404)";
     "-h", Arg.Unit (fun () -> print_help := true), " Display this list of options";
   ] in
   let () = Arg.parse options (fun arg -> filename := arg) usage in
