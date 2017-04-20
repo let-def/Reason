@@ -1445,12 +1445,12 @@ _module_expr:
 
 structure:
   | structure_no_semi { $1 }
-  | expr post_item_attributes structure_body {
+  | expr post_item_attributes structure_tail {
       mkstrexp $1 $2 :: $3
   }
 ;
 
-structure_body:
+structure_tail:
   | structure_no_semi { $1 }
   | SEMI structure { $2 }
 ;
@@ -1463,7 +1463,7 @@ structure_no_semi:
       | MenhirMessagesError errMessage -> (syntax_error_str errMessage.loc errMessage.msg) :: $2
       | _ -> (syntax_error_str $1.loc "Invalid statement") :: $2
   }
-  | structure_item structure_body {
+  | structure_item structure_tail {
       let effective_loc = mklocation $startpos($1) $endpos($1) in
       set_structure_item_location $1 effective_loc :: $2
   }
@@ -1736,7 +1736,7 @@ _module_type:
 ;
 signature:
     (* empty *)          { [] }
-  | signature_item SEMI signature { $1 :: $3 }
+  | signature_item SEMI? signature { $1 :: $3 }
 ;
 
 signature_item: mark_position_sig(_signature_item) { $1 }
@@ -2074,8 +2074,7 @@ _class_field:
 happen for things like records *)
 semi_terminated_class_fields:
   | (* Empty *)           {[]}
-  | class_field           { [$1] }
-  | class_field SEMI semi_terminated_class_fields   { $1::$3 }
+  | class_field SEMI? semi_terminated_class_fields   { $1::$3 }
 ;
 
 parent_binder:
@@ -2338,8 +2337,7 @@ class_self_type:
 ;
 class_sig_fields:
     (* empty *)                         { [] }
-| class_sig_field { [$1] }
-| class_sig_fields SEMI class_sig_field { $3 :: $1 }
+| class_sig_fields SEMI? class_sig_field { $3 :: $1 }
 ;
 
 class_sig_field: mark_position_ctf (_class_sig_field) {$1}
@@ -2442,9 +2440,8 @@ class_type_declaration_details:
  *  let add a b = {
  *    a + b;
  *  };
- *  TODO: Rename to [semi_delimited_block_sequence]
  *
- * Since semi_terminated_seq_expr doesn't require a final SEMI, then without
+ * Since semi_delimited_block_sequence doesn't require a final SEMI, then without
  * a final SEMI, a braced sequence with a single identifier is
  * indistinguishable from a punned record.
  *
@@ -2461,28 +2458,8 @@ class_type_declaration_details:
  *   [nonempty_item_attributes] ITEM
  *   ITEM
  *)
-semi_terminated_seq_expr: mark_position_exp (_semi_terminated_seq_expr) {$1}
-_semi_terminated_seq_expr:
-  | semi_terminated_seq_expr_row {
-      $1
-    }
-  (**
-   * Let bindings already have their potential item_extension_sugar.
-   *)
-  | let_bindings SEMI semi_terminated_seq_expr {
-      expr_of_let_bindings $1 $3
-    }
-  | let_bindings opt_semi {
-      let loc = mklocation $symbolstartpos $endpos in
-      expr_of_let_bindings $1 @@ ghunit ~loc ()
-    }
-;
-
-semi_terminated_seq_expr_row: mark_position_exp (_semi_terminated_seq_expr_row) {$1}
-_semi_terminated_seq_expr_row:
-  (**
-   * Expression SEMI
-   *)
+semi_delimited_block_sequence: mark_position_exp (_semi_delimited_block_sequence) {$1}
+_semi_delimited_block_sequence:
   | expr post_item_attributes opt_semi  {
       let expr = $1 in
       let item_attrs = $2 in
@@ -2490,19 +2467,36 @@ _semi_terminated_seq_expr_row:
        * expression attributes *)
       {expr with pexp_attributes = item_attrs @ expr.pexp_attributes}
     }
-  | opt_let_module as_loc(UIDENT) module_binding_body post_item_attributes SEMI semi_terminated_seq_expr {
-      let item_attrs = $4 in
-      mkexp ~attrs:item_attrs (Pexp_letmodule($2, $3, $6))
-    }
-  | LET? OPEN override_flag as_loc(mod_longident) post_item_attributes SEMI semi_terminated_seq_expr {
-      let item_attrs = $5 in
-      mkexp ~attrs:item_attrs (Pexp_open($3, $4, $7))
-    }
-  | expr post_item_attributes SEMI semi_terminated_seq_expr  {
+  | expr post_item_attributes SEMI semi_delimited_block_sequence  {
       let item_attrs = $2 in
       mkexp ~attrs:item_attrs (Pexp_sequence($1, $4))
     }
+  (**
+   * Let bindings already have their potential item_extension_sugar.
+   *)
+  | let_bindings opt_semi {
+      let loc = mklocation $symbolstartpos $endpos in
+      expr_of_let_bindings $1 @@ ghunit ~loc ()
+    }
+  | semi_delimited_block_sequence_no_semi { $1 }
 ;
+
+semi_delimited_block_sequence_no_semi: mark_position_exp (_semi_delimited_block_sequence_no_semi) {$1}
+_semi_delimited_block_sequence_no_semi:
+  | let_bindings semi_delimited_block_sequence_no_semi {
+      expr_of_let_bindings $1 $2
+    }
+  | SEMI semi_delimited_block_sequence { $2 }
+  | opt_let_module as_loc(UIDENT) module_binding_body post_item_attributes semi_delimited_block_sequence_no_semi {
+      let item_attrs = $4 in
+      mkexp ~attrs:item_attrs (Pexp_letmodule($2, $3, $5))
+    }
+  | LET? OPEN override_flag as_loc(mod_longident) post_item_attributes semi_delimited_block_sequence_no_semi {
+      let item_attrs = $5 in
+      mkexp ~attrs:item_attrs (Pexp_open($3, $4, $6))
+    }
+;
+
 
 (*
 
@@ -2882,9 +2876,9 @@ _simple_expr:
         let loc = mklocation $symbolstartpos $endpos in
         ghexp_constraint loc $2 $3
       }
-  | LBRACE semi_terminated_seq_expr RBRACE
+  | LBRACE semi_delimited_block_sequence RBRACE
       { $2 }
-  | LBRACE as_loc(semi_terminated_seq_expr) error
+  | LBRACE as_loc(semi_delimited_block_sequence) error
       { syntax_error_exp $2.loc "SyntaxError in block" }
   | LPAREN expr_comma_list opt_comma RPAREN
       { mkexp(Pexp_tuple(List.rev $2)) }
@@ -3337,9 +3331,9 @@ leading_bar_match_case:
 ;
 
 leading_bar_match_case_to_sequence_body:
-  | pattern_with_bar EQUALGREATER semi_terminated_seq_expr
+  | pattern_with_bar EQUALGREATER semi_delimited_block_sequence
       { Exp.case $1 $3 }
-  | pattern_with_bar WHEN expr EQUALGREATER semi_terminated_seq_expr
+  | pattern_with_bar WHEN expr EQUALGREATER semi_delimited_block_sequence
       { Exp.case $1 ~guard:$3 $5 }
 ;
 
