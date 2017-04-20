@@ -1165,9 +1165,9 @@ conflicts.
                  nonrec_flag
                  _simple_non_labeled_expr_list_as_tuple
                  val_ident
-                 opt_semi
                  curried_binding
                  expr_optional_constraint
+                 SEMI?
 %%
 
 (* Entry points *)
@@ -1214,31 +1214,31 @@ parse_pattern:
 (* Module expressions *)
 
 
-mark_position_mod(X):
+%inline mark_position_mod(X):
 	x = X
 	{ {x with pmod_loc = {x.pmod_loc with loc_start = $symbolstartpos; loc_end = $endpos}} }
 ;
 
-mark_position_cty(X):
+%inline mark_position_cty(X):
 	x = X
 	{ {x with pcty_loc = {x.pcty_loc with loc_start = $symbolstartpos; loc_end = $endpos}} }
 ;
 
-mark_position_ctf(X):
+%inline mark_position_ctf(X):
 	x = X
 	{ {x with pctf_loc = {x.pctf_loc with loc_start = $symbolstartpos; loc_end = $endpos}} }
 ;
 
-mark_position_exp(X):
+%inline mark_position_exp(X):
 	x = X
 	{ {x with pexp_loc = {x.pexp_loc with loc_start = $symbolstartpos; loc_end = $endpos}} }
 ;
 
-mark_position_typ(X):
+%inline mark_position_typ(X):
 	x = X
 	{ {x with ptyp_loc = {x.ptyp_loc with loc_start = $symbolstartpos; loc_end = $endpos}} }
 ;
-mark_position_typ2(X):
+%inline mark_position_typ2(X):
 	x = X
 	{
 	match x with
@@ -1247,32 +1247,32 @@ mark_position_typ2(X):
 	}
 ;
 
-mark_position_mty(X):
+%inline mark_position_mty(X):
 	x = X
 	{ {x with pmty_loc = {x.pmty_loc with loc_start = $symbolstartpos; loc_end = $endpos}} }
 ;
 
-mark_position_sig(X):
+%inline mark_position_sig(X):
 	x = X
 	{ {x with psig_loc = {x.psig_loc with loc_start = $symbolstartpos; loc_end = $endpos}} }
 ;
 
-mark_position_str(X):
+%inline mark_position_str(X):
 	x = X
 	{ {x with pstr_loc = {x.pstr_loc with loc_start = $symbolstartpos; loc_end = $endpos}} }
 ;
 
-mark_position_cl(X):
+%inline mark_position_cl(X):
 	x = X
 	{ {x with pcl_loc = {x.pcl_loc with loc_start = $symbolstartpos; loc_end = $endpos}} }
 ;
 
-mark_position_cf(X):
+%inline mark_position_cf(X):
 	x = X
 	{ {x with pcf_loc = {x.pcf_loc with loc_start = $symbolstartpos; loc_end = $endpos}} }
 ;
 
-mark_position_pat(X):
+%inline mark_position_pat(X):
 	x = X
 	{ {x with ppat_loc = {x.ppat_loc with loc_start = $symbolstartpos; loc_end = $endpos}} }
 ;
@@ -1810,7 +1810,7 @@ _signature_item:
     }
 ;
 
-open_statement:
+%inline open_statement:
   | OPEN override_flag as_loc(mod_longident) post_item_attributes
       {
         let loc = mklocation $symbolstartpos $endpos in
@@ -1828,7 +1828,7 @@ _module_declaration:
       { mkmty(Pmty_functor(mkloc "*" (mklocation $startpos($1) $endpos($1)), None, $3)) }
 ;
 
-module_rec_declaration_details:
+%inline module_rec_declaration_details:
   | as_loc(UIDENT) COLON module_type { ($1, $3) }
 ;
 
@@ -1865,7 +1865,7 @@ many_class_declarations:
   }
 ;
 
-and_class_declaration:
+%inline and_class_declaration:
   AND class_declaration_details post_item_attributes {
     let (ident, binding, virt, params) = $2 in
     let loc = mklocation $symbolstartpos $endpos in
@@ -2070,7 +2070,7 @@ _class_field:
       { mkcf (Pcf_attribute $1) }
 ;
 
-(* Don't need opt_semi here because of the empty rule (which normally doesn't
+(* Don't need SEMI? here because of the empty rule (which normally doesn't
 happen for things like records *)
 semi_terminated_class_fields:
   | (* Empty *)           {[]}
@@ -2319,7 +2319,7 @@ _class_instance_type:
 
 
 class_sig_body:
-    class_self_type class_sig_fields opt_semi
+    class_self_type class_sig_fields SEMI?
     { Csig.mk $1 (List.rev $2 )}
 ;
 
@@ -2393,7 +2393,7 @@ many_class_descriptions:
     $2 :: $1
   }
 ;
-and_class_description:
+%inline and_class_description:
   | AND class_description_details post_item_attributes {
     let (ident, binding, virt, params) = $2 in
     let loc = mklocation $symbolstartpos $endpos in
@@ -2417,7 +2417,7 @@ many_class_type_declarations:
   }
 ;
 
-and_class_type_declaration:
+%inline and_class_type_declaration:
   AND class_type_declaration_details post_item_attributes {
     let (ident, instance_type, virt, class_type_params) = $2 in
     let loc = mklocation $symbolstartpos $endpos in
@@ -2460,7 +2460,7 @@ class_type_declaration_details:
  *)
 semi_delimited_block_sequence: mark_position_exp (_semi_delimited_block_sequence) {$1}
 _semi_delimited_block_sequence:
-  | expr post_item_attributes opt_semi  {
+  | expr post_item_attributes SEMI?  {
       let expr = $1 in
       let item_attrs = $2 in
       (* Final item in the sequence - just append item attributes to the
@@ -2474,7 +2474,7 @@ _semi_delimited_block_sequence:
   (**
    * Let bindings already have their potential item_extension_sugar.
    *)
-  | let_bindings opt_semi {
+  | let_bindings SEMI? {
       let loc = mklocation $symbolstartpos $endpos in
       expr_of_let_bindings $1 @@ ghunit ~loc ()
     }
@@ -2880,7 +2880,7 @@ _simple_expr:
       { $2 }
   | LBRACE as_loc(semi_delimited_block_sequence) error
       { syntax_error_exp $2.loc "SyntaxError in block" }
-  | LPAREN expr_comma_list opt_comma RPAREN
+  | LPAREN expr_comma_list COMMA? RPAREN
       { mkexp(Pexp_tuple(List.rev $2)) }
   | as_loc(LPAREN) expr_comma_list as_loc(error)
       { unclosed_exp (with_txt $1 "(") (with_txt $3 ")") }
@@ -2931,7 +2931,7 @@ _simple_expr:
 
   (* TODO: Let Sequence? *)
 
-  | LBRACE DOTDOTDOT expr_optional_constraint opt_comma RBRACE
+  | LBRACE DOTDOTDOT expr_optional_constraint COMMA? RBRACE
       {
         let loc = mklocation $symbolstartpos $endpos in
         let msg = "Record construction must have at least one field explicitly set" in
@@ -2962,19 +2962,19 @@ _simple_expr:
         mkexp(Pexp_open(Fresh, $1, rec_exp)) }
   | mod_longident DOT as_loc(LBRACE) record_expr as_loc(error)
       { unclosed_exp (with_txt $3 "{") (with_txt $5 "}") }
-  | LBRACKETBAR expr_comma_seq opt_comma BARRBRACKET
+  | LBRACKETBAR expr_comma_seq COMMA? BARRBRACKET
       { mkexp (Pexp_array(List.rev $2)) }
-  | as_loc(LBRACKETBAR) expr_comma_seq opt_comma as_loc(error)
+  | as_loc(LBRACKETBAR) expr_comma_seq COMMA? as_loc(error)
       { unclosed_exp (with_txt $1 "[|") (with_txt $4 "|]") }
   | LBRACKETBAR BARRBRACKET
       { mkexp (Pexp_array []) }
-  | as_loc(mod_longident) DOT LBRACKETBAR expr_comma_seq opt_comma BARRBRACKET
+  | as_loc(mod_longident) DOT LBRACKETBAR expr_comma_seq COMMA? BARRBRACKET
       {
         let loc = mklocation $symbolstartpos $endpos in
         let rec_exp = Exp.mk ~loc ~attrs:[] (Pexp_array(List.rev $4)) in
         mkexp(Pexp_open(Fresh, $1, rec_exp))
       }
-  | mod_longident DOT as_loc(LBRACKETBAR) expr_comma_seq opt_comma as_loc(error)
+  | mod_longident DOT as_loc(LBRACKETBAR) expr_comma_seq COMMA? as_loc(error)
       { unclosed_exp (with_txt $3 "[|") (with_txt $6 "|]") }
   | LBRACKET expr_comma_seq_extension
       { let seq, ext_opt = $2 in
@@ -3002,19 +3002,19 @@ _simple_expr:
       }
   | NEW as_loc(class_longident)
       { mkexp (Pexp_new $2) }
-  | LBRACELESS field_expr_list opt_comma GREATERRBRACE
+  | LBRACELESS field_expr_list COMMA? GREATERRBRACE
       { mkexp (Pexp_override(List.rev $2)) }
-  | as_loc(LBRACELESS) field_expr_list opt_comma as_loc(error)
+  | as_loc(LBRACELESS) field_expr_list COMMA? as_loc(error)
       { unclosed_exp (with_txt $1 "{<") (with_txt $4 ">}" ) }
   | LBRACELESS GREATERRBRACE
       { mkexp (Pexp_override [])}
-  | as_loc(mod_longident) DOT LBRACELESS field_expr_list opt_comma GREATERRBRACE
+  | as_loc(mod_longident) DOT LBRACELESS field_expr_list COMMA? GREATERRBRACE
       {
         let loc = mklocation $symbolstartpos $endpos in
         let exp = Exp.mk ~loc ~attrs:[] (Pexp_override(List.rev $4)) in
         mkexp(Pexp_open(Fresh, $1, exp))
       }
-  | mod_longident DOT as_loc(LBRACELESS) field_expr_list opt_comma as_loc(error)
+  | mod_longident DOT as_loc(LBRACELESS) field_expr_list COMMA? as_loc(error)
       { unclosed_exp (with_txt $3 "{<") (with_txt $6 ">}") }
   | simple_expr SHARP label
       { mkexp(Pexp_send($1, $3)) }
@@ -3383,7 +3383,7 @@ expr_comma_seq:
 expr_comma_seq_extension:
   | DOTDOTDOT expr_optional_constraint RBRACKET
     { ([], Some $2) }
-  | expr_optional_constraint opt_comma RBRACKET
+  | expr_optional_constraint COMMA? RBRACKET
     { ([$1], None) }
   | expr_optional_constraint COMMA expr_comma_seq_extension
     { let seq, ext = $3 in ($1::seq, ext) }
@@ -3396,7 +3396,7 @@ expr_comma_seq_extension:
 
 expr_comma_seq_extension_second_item: | DOTDOTDOT expr_optional_constraint RBRACKET
     { ([], Some $2) }
-  | expr_optional_constraint opt_comma RBRACKET
+  | expr_optional_constraint COMMA? RBRACKET
     { ([$1], None) }
   | expr_optional_constraint COMMA expr_comma_seq_extension
     { let seq, ext = $3 in ($1::seq, ext) }
@@ -3646,18 +3646,18 @@ _simple_pattern_not_ident:
   | as_loc(LBRACE) lbl_pattern_list as_loc(error)
       { unclosed_pat (with_txt $1 "{") (with_txt $3 "}") }
 
-  | LBRACKET pattern_comma_list_extension opt_semi RBRACKET
+  | LBRACKET pattern_comma_list_extension SEMI? RBRACKET
       { let seq, ext_opt = $2 in
         let loc_rbracket = mklocation $startpos($2) $endpos($2) in
         make_real_pat (mktailpat_extension loc_rbracket (List.rev seq) ext_opt) }
-  | as_loc(LBRACKET) pattern_comma_list_extension opt_semi as_loc(error)
+  | as_loc(LBRACKET) pattern_comma_list_extension SEMI? as_loc(error)
       { unclosed_pat (with_txt $1 "[") (with_txt $4 "]") }
 
-  | LBRACKETBAR pattern_comma_list opt_semi BARRBRACKET
+  | LBRACKETBAR pattern_comma_list SEMI? BARRBRACKET
       { mkpat(Ppat_array(List.rev $2)) }
   | LBRACKETBAR BARRBRACKET
       { mkpat(Ppat_array []) }
-  | as_loc(LBRACKETBAR) pattern_comma_list opt_semi as_loc(error)
+  | as_loc(LBRACKETBAR) pattern_comma_list SEMI? as_loc(error)
       { unclosed_pat (with_txt $1 "[|") (with_txt $4 "|]") }
   | LPAREN pattern RPAREN
       { $2 }
@@ -3731,7 +3731,7 @@ pattern_comma_list_extension:
 lbl_pattern_list:
     lbl_pattern { [$1], Closed }
   | lbl_pattern COMMA { [$1], Closed }
-  | lbl_pattern COMMA UNDERSCORE opt_comma { [$1], Open }
+  | lbl_pattern COMMA UNDERSCORE COMMA? { [$1], Open }
   | lbl_pattern COMMA lbl_pattern_list
       { let (fields, closed) = $3 in $1 :: fields, closed }
 ;
@@ -3825,7 +3825,7 @@ type_kind:
         let core_type_loc = mklocation $startpos($2) $endpos($2) in
         (Ptype_open, Public, Some (only_core_type $2 core_type_loc))
       }
-  | EQUAL core_type EQUAL private_flag LBRACE label_declarations opt_comma RBRACE
+  | EQUAL core_type EQUAL private_flag LBRACE label_declarations COMMA? RBRACE
       {
         let core_type_loc = mklocation $startpos($2) $endpos($2) in
         (Ptype_record(List.rev (only_labels $6)), $4, Some (only_core_type $2 core_type_loc))
@@ -3982,7 +3982,7 @@ potentially_long_ident_and_optional_type_parameters:
 
 str_type_extension:
   TYPE nonrec_flag potentially_long_ident_and_optional_type_parameters
-  PLUSEQ private_flag opt_bar str_extension_constructors
+  PLUSEQ private_flag BAR? str_extension_constructors
   post_item_attributes
   {
     if $2 <> Recursive then not_expecting $startpos($2) $endpos($2) "nonrec flag";
@@ -3993,7 +3993,7 @@ str_type_extension:
 ;
 sig_type_extension:
   TYPE nonrec_flag potentially_long_ident_and_optional_type_parameters
-  PLUSEQ private_flag opt_bar sig_extension_constructors
+  PLUSEQ private_flag BAR? sig_extension_constructors
   post_item_attributes
   {
     if $2 <> Recursive then not_expecting $startpos($2) $endpos($2) "nonrec flag";
@@ -4328,13 +4328,13 @@ _non_arrowed_simple_core_type:
       { Core_type(mktyp(Ptyp_variant(List.rev $3, Closed, None))) }
   | LBRACKET row_field BAR row_field_list RBRACKET
       { Core_type(mktyp(Ptyp_variant($2 :: List.rev $4, Closed, None))) }
-  | LBRACKETGREATER opt_bar row_field_list RBRACKET
+  | LBRACKETGREATER BAR? row_field_list RBRACKET
       { Core_type(mktyp(Ptyp_variant(List.rev $3, Open, None))) }
   | LBRACKETGREATER RBRACKET
       { Core_type(mktyp(Ptyp_variant([], Open, None))) }
-  | LBRACKETLESS opt_bar row_field_list RBRACKET
+  | LBRACKETLESS BAR? row_field_list RBRACKET
       { Core_type(mktyp(Ptyp_variant(List.rev $3, Closed, Some []))) }
-  | LBRACKETLESS opt_bar row_field_list GREATER name_tag_list RBRACKET
+  | LBRACKETLESS BAR? row_field_list GREATER name_tag_list RBRACKET
       { Core_type(mktyp(Ptyp_variant(List.rev $3, Closed, Some (List.rev $5)))) }
   | LPAREN MODULE package_type RPAREN
       { Core_type(mktyp(Ptyp_package $3)) }
@@ -4348,7 +4348,7 @@ object_record_type:
       { [], Object_closed }
 | LBRACE DOTDOT RBRACE
       { [], Object_open }
-| LBRACE label_declarations opt_comma RBRACE
+| LBRACE label_declarations COMMA? RBRACE
       { List.rev $2, Record }
 | LBRACE DOT label_declarations RBRACE
       { List.rev $3, Object_closed }
@@ -4444,7 +4444,7 @@ non_arrowed_simple_core_type_list:
       }
 ;
 
-label:
+%inline label:
     LIDENT                                      { $1 }
 ;
 
@@ -4604,7 +4604,7 @@ opt_let_module:
     | MODULE { () }
 ;
 
-name_tag:
+%inline name_tag:
     BACKQUOTE ident                             { $2 }
 ;
 rec_flag:
@@ -4639,18 +4639,6 @@ private_virtual_flags:
 override_flag:
     (* empty *)                                 { Fresh }
   | BANG                                        { Override }
-;
-opt_bar:
-    (* empty *)                                 { () }
-  | BAR                                         { () }
-;
-opt_comma:
-  | (* empty *)                                 { () }
-  | COMMA                                       { () }
-;
-opt_semi:
-  | (* empty *)                                 { () }
-  | SEMI                                        { () }
 ;
 subtractive:
   | MINUS                                       { "-" }
