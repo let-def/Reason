@@ -1444,6 +1444,18 @@ _module_expr:
  *)
 
 structure:
+  | structure_no_semi { $1 }
+  | expr post_item_attributes structure_body {
+      mkstrexp $1 $2 :: $3
+  }
+;
+
+structure_body:
+  | structure_no_semi { $1 }
+  | SEMI structure { $2 }
+;
+
+structure_no_semi:
   | (* Empty *) { [] }
   | as_loc(error) structure {
     let menhirError = Syntax_util.findMenhirErrorMessage $1.loc in
@@ -1451,46 +1463,18 @@ structure:
       | MenhirMessagesError errMessage -> (syntax_error_str errMessage.loc errMessage.msg) :: $2
       | _ -> (syntax_error_str $1.loc "Invalid statement") :: $2
   }
-  | as_loc(error) SEMI structure {
-    let menhirError = Syntax_util.findMenhirErrorMessage $1.loc in
-    match menhirError with
-      | MenhirMessagesError errMessage -> (syntax_error_str errMessage.loc errMessage.msg) :: $3
-      | _ -> (syntax_error_str $1.loc "Invalid statement") :: $3
-    }
-  | structure_item { [$1] }
-  | as_loc(structure_item) error structure {
-    let menhirError = Syntax_util.findMenhirErrorMessage $1.loc in
-    match menhirError with
-      | MenhirMessagesError errMessage -> (syntax_error_str errMessage.loc errMessage.msg) :: $3
-      | _ -> (syntax_error_str $1.loc "Statement has to end with a semicolon") :: $3
-  }
-  | structure_item SEMI structure {
-      let effective_loc = mklocation $startpos($1) $endpos($2) in
-      set_structure_item_location $1 effective_loc :: $3
+  | structure_item structure_body {
+      let effective_loc = mklocation $startpos($1) $endpos($1) in
+      set_structure_item_location $1 effective_loc :: $2
   }
 ;
-
 
 structure_item: mark_position_str(_structure_item) {$1}
 _structure_item:
-  | item_extension_sugar structure_item_without_item_extension_sugar {
-    struct_item_extension $1 $2
-  }
-  | structure_item_without_item_extension_sugar {
-    $1
-  }
   (* Each let binding has its own post_item_attributes *)
   | let_bindings { val_of_let_bindings $1 }
-;
-
-structure_item_without_item_extension_sugar:
-  mark_position_str(_structure_item_without_item_extension_sugar) {$1}
-_structure_item_without_item_extension_sugar:
   (* We consider a floating expression to be equivalent to a single let binding
      to the "_" (any) pattern.  *)
-  | expr post_item_attributes {
-      mkstrexp $1 $2
-    }
   | EXTERNAL as_loc(val_ident) COLON core_type EQUAL primitive_declaration post_item_attributes {
       let loc = mklocation $symbolstartpos $endpos in
       let core_loc = mklocation $startpos($4) $endpos($4) in
@@ -2479,9 +2463,6 @@ class_type_declaration_details:
  *)
 semi_terminated_seq_expr: mark_position_exp (_semi_terminated_seq_expr) {$1}
 _semi_terminated_seq_expr:
-  | item_extension_sugar semi_terminated_seq_expr_row {
-      extension_expression $1 $2
-    }
   | semi_terminated_seq_expr_row {
       $1
     }
@@ -3164,12 +3145,6 @@ let_binding:
    * avoid a parsing conflict. Why is that the case? How can we treat rules as
    * "exactly the same as being inlined?".
    *)
-  | item_extension_sugar let_binding_impl {
-      let (rec_flag, body, item_attrs) = $2 in
-      let (ext_attrs, ext_id) = $1 in
-      let loc = mklocation $symbolstartpos $endpos in
-      mklbs (ext_attrs, Some ext_id) rec_flag (mklb body item_attrs loc) loc
-    }
 ;
 
 let_binding_body:
@@ -3425,8 +3400,7 @@ expr_comma_seq_extension:
   Used when parsing `[<> </>, remaining]`. We know that there is at
   least one item, so we either should have a comma + more, or nothing.
 
-expr_comma_seq_extension_second_item:
-  | DOTDOTDOT expr_optional_constraint RBRACKET
+expr_comma_seq_extension_second_item: | DOTDOTDOT expr_optional_constraint RBRACKET
     { ([], Some $2) }
   | expr_optional_constraint opt_comma RBRACKET
     { ([$1], None) }
@@ -3434,7 +3408,6 @@ expr_comma_seq_extension_second_item:
     { let seq, ext = $3 in ($1::seq, ext) }
 ;
 *)
-
 (**
  * See note about tuple patterns. There are few cases where expressions may be
  * type constrained without requiring additional parens, and inside of tuples
@@ -4772,24 +4745,6 @@ attributes:
 post_item_attributes:
     (* empty *){ [] }
   | item_attribute post_item_attributes { $1 :: $2 }
-;
-
-item_extension_sugar:
-  (**
-   * Note, this form isn't really super useful, but wouldn't cause any parser
-   * conflicts. Not supporting it though just to avoid having to write the
-   * pretty printing logic.
-   *
-   *   [@attrsOnExtension] %extSugarId [@attrOnLet] LET ..
-   *
-   * We won't document it though, and probably won't format it as such.
-   *  | PERCENT attr_id item_attribute post_item_attributes {
-   *     ($3::$4, $2)
-   *    }
-   *)
-  | PERCENT attr_id {
-      ([], $2)
-    }
 ;
 
 extension:
