@@ -1448,6 +1448,9 @@ structure:
   | expr post_item_attributes structure_tail {
       mkstrexp $1 $2 :: $3
   }
+  (*| item_extension_sugar expr post_item_attributes structure_tail {
+      extension_expression $1 (mkstrexp $2 $3) :: $4
+  }*)
 ;
 
 structure_tail:
@@ -1473,8 +1476,12 @@ structure_item: mark_position_str(_structure_item) {$1}
 _structure_item:
   (* Each let binding has its own post_item_attributes *)
   | let_bindings { val_of_let_bindings $1 }
+  | __structure_item { $1 }
+  | item_extension_sugar __structure_item { struct_item_extension $1 $2 }
   (* We consider a floating expression to be equivalent to a single let binding
      to the "_" (any) pattern.  *)
+
+__structure_item:
   | EXTERNAL as_loc(val_ident) COLON core_type EQUAL primitive_declaration post_item_attributes {
       let loc = mklocation $symbolstartpos $endpos in
       let core_loc = mklocation $startpos($4) $endpos($4) in
