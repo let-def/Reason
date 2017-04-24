@@ -2459,7 +2459,13 @@ class_type_declaration_details:
  *   ITEM
  *)
 semi_delimited_block_sequence: mark_position_exp (_semi_delimited_block_sequence) {$1}
-_semi_delimited_block_sequence:
+
+%inline _semi_delimited_block_sequence:
+| __semi_delimited_block_sequence { $1 }
+| item_extension_sugar __semi_delimited_block_sequence
+  { extension_expression $1 $2 }
+
+__semi_delimited_block_sequence:
   | expr post_item_attributes SEMI?  {
       let expr = $1 in
       let item_attrs = $2 in
@@ -4728,6 +4734,25 @@ post_item_attributes:
     (* empty *){ [] }
   | item_attribute post_item_attributes { $1 :: $2 }
 ;
+
+item_extension_sugar:
+  /**
+   * Note, this form isn't really super useful, but wouldn't cause any parser
+   * conflicts. Not supporting it though just to avoid having to write the
+   * pretty printing logic.
+   *
+   *   [@attrsOnExtension] %extSugarId [@attrOnLet] LET ..
+   *
+   * We won't document it though, and probably won't format it as such.
+   *  | PERCENT attr_id item_attribute post_item_attributes {
+   *     ($3::$4, $2)
+   *    }
+   */
+  | PERCENT attr_id {
+      ([], $2)
+    }
+;
+
 
 extension:
   LBRACKETPERCENT attr_id payload RBRACKET { ($2, $3) }
