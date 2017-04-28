@@ -1180,17 +1180,17 @@ interface:
 
 toplevel_phrase: embedded
   ( EOF                              { raise End_of_file}
-  | structure_item     SEMI          { Ptop_def [$1]}
+  | structure_items    SEMI          { Ptop_def $1 }
   | toplevel_directive SEMI          { $1 }
   ) {apply_mapper_to_toplevel_phrase $1 (reason_mapper ()) }
 ;
 
 use_file: embedded
-  ( EOF                              { [] }
-  | structure_item     SEMI use_file { Ptop_def[$1] :: $3 }
-  | toplevel_directive SEMI use_file { $1 :: $3 }
-  | structure_item     EOF           { [Ptop_def[$1]] }
-  | toplevel_directive EOF           { [$1] }
+  ( EOF                               { [] }
+  | structure_items     SEMI use_file { Ptop_def $1  :: $3 }
+  | toplevel_directive  SEMI use_file { $1 :: $3 }
+  | structure_items     EOF           { [Ptop_def $1 ] }
+  | toplevel_directive  EOF           { [$1] }
   ) {apply_mapper_to_use_file $1 (reason_mapper ())}
 ;
 
@@ -1364,31 +1364,24 @@ structure:
       | MenhirMessagesError errMessage -> (syntax_error_str errMessage.loc errMessage.msg) :: $2
       | _ -> (syntax_error_str $1.loc "Invalid statement") :: $2
     }
-  | as_loc(error) SEMI structure
-    { let menhirError = Syntax_util.findMenhirErrorMessage $1.loc in
-      match menhirError with
-      | MenhirMessagesError errMessage -> (syntax_error_str errMessage.loc errMessage.msg) :: $3
-      | _ -> (syntax_error_str $1.loc "Invalid statement") :: $3
-    }
-  | structure_item { [$1] }
-  | as_loc(structure_item) error structure
-    { let menhirError = Syntax_util.findMenhirErrorMessage $1.loc in
-      match menhirError with
-      | MenhirMessagesError errMessage -> (syntax_error_str errMessage.loc errMessage.msg) :: $3
-      | _ -> (syntax_error_str $1.loc "Statement has to end with a semicolon") :: $3
-    }
-  | structure_item SEMI structure
-    { let effective_loc = mklocation $startpos($1) $endpos($2) in
-      set_structure_item_location $1 effective_loc :: $3
-    }
+  | structure_items { $1 }
+  | structure_items SEMI structure { $1 @ $3 }
 ;
+
+%inline structure_items: structure_items_rev { List.rev $1 };
+
+structure_items_rev:
+  | structure_item { [$1] }
+  | mark_position_str(first_structure_item) { [$1] }
+  | structure_items_rev structure_item { $2 :: $1 }
+;
+
+%inline first_structure_item:
+  expr item_attribute* { mkstrexp $1 $2 };
 
 structure_item:
 mark_position_str
-  ( expr item_attribute*
-    { mkstrexp $1 $2 }
-    /* Each let binding has its own item_attribute* */
-  | let_bindings
+  ( let_bindings
     { val_of_let_bindings $1 }
   | EXTERNAL as_loc(val_ident) COLON only_core_type(core_type)
       EQUAL primitive_declaration item_attribute*
