@@ -1776,10 +1776,14 @@ mark_position_cl
 class_expr_lets_and_rest:
 mark_position_cl
   ( class_expr { $1 }
-  | let_bindings SEMI class_expr_lets_and_rest
-    { class_of_let_bindings $1 $3 }
-  | object_body { mkclass (Pcl_structure $1) }
+  | class_body { $1 }
+  | let_bindings+ SEMI class_expr_lets_and_rest
+    { List.fold_right class_of_let_bindings $1 $3 }
+  | let_bindings+ class_body
+    { List.fold_right class_of_let_bindings $1 $2 }
   ) {$1};
+
+%inline class_body: object_body { mkclass (Pcl_structure $1) };
 
 object_body:
   mark_position_pat (
@@ -1791,7 +1795,7 @@ object_body:
   | AS pattern SEMI
     { $2 }
   )
-  lseparated_list(SEMI, class_field) SEMI?
+  terminated(class_field, SEMI?)*
   { Cstr.mk $1 $2 }
 ;
 
