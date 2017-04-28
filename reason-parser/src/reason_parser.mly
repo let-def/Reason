@@ -1385,21 +1385,11 @@ structure:
 
 structure_item:
 mark_position_str
-  ( item_extension_sugar structure_item_without_item_extension_sugar
-    { struct_item_extension $1 $2 }
-  | structure_item_without_item_extension_sugar
-    { $1 }
+  ( expr item_attribute*
+    { mkstrexp $1 $2 }
     /* Each let binding has its own item_attribute* */
   | let_bindings
     { val_of_let_bindings $1 }
-  ) {$1};
-
-structure_item_without_item_extension_sugar:
-mark_position_str
-  /* We consider a floating expression to be equivalent to a single let binding
-     to the "_" (any) pattern.  */
-  ( expr item_attribute*
-    { mkstrexp $1 $2 }
   | EXTERNAL as_loc(val_ident) COLON only_core_type(core_type)
       EQUAL primitive_declaration item_attribute*
     { let loc = mklocation $symbolstartpos $endpos in
@@ -1443,8 +1433,6 @@ mark_position_str
       mkstr(Pstr_include (Incl.mk $2 ~attrs:$3 ~loc))
     }
   | item_extension item_attribute*
-    (* No sense in having item_extension_sugar for something that's already an
-     * item_extension *)
     { mkstr(Pstr_extension ($1, $2)) }
   | floating_attribute
     { mkstr(Pstr_attribute $1) }
@@ -2210,19 +2198,12 @@ class_type_declaration_details:
  *
  * For each valid sequence item, we must list three forms:
  *
- *   [item_extension_sugar] [nonempty_item_attributes] ITEM
  *   [nonempty_item_attributes] ITEM
  *   ITEM
  */
 semi_terminated_seq_expr:
 mark_position_exp
-  ( item_extension_sugar semi_terminated_seq_expr_row
-    { extension_expression $1 $2 }
-  | semi_terminated_seq_expr_row
-    { $1 }
-  /**
-   * Let bindings already have their potential item_extension_sugar.
-   */
+  ( semi_terminated_seq_expr_row { $1 }
   | let_bindings SEMI semi_terminated_seq_expr
     { expr_of_let_bindings $1 $3 }
   | let_bindings SEMI?
@@ -2795,6 +2776,15 @@ label_expr:
     { (Optional $1, $3) }
 ;
 
+let_bindings: let_binding and_let_binding* { addlbs $1 $2 };
+
+let_binding:
+  LET rec_flag let_binding_body item_attribute*
+  { let loc = mklocation $symbolstartpos $endpos in
+    mklbs ([], None) $2 (mklb $3 $4 loc) loc
+  }
+;
+
 %inline and_let_binding:
   /* AND bindings don't accept a preceeding extension ID, but do accept
    * preceeding item_attribute*. These preceeding item_attribute* will cause an
@@ -2803,20 +2793,6 @@ label_expr:
    */
   AND let_binding_body item_attribute*
   { mklb $2 $3 (mklocation $symbolstartpos $endpos) }
-;
-
-let_bindings: let_binding and_let_binding* { addlbs $1 $2 };
-
-let_binding:
-  /* Form with item extension sugar */
-  ioption(item_extension_sugar) LET rec_flag let_binding_body item_attribute*
-  { let (ext_attrs, ext_id) = match $1 with
-      | Some (ext_attrs, ext_id) -> (ext_attrs, Some ext_id)
-      | None -> ([], None)
-    in
-    let loc = mklocation $symbolstartpos $endpos in
-    mklbs (ext_attrs, ext_id) $3 (mklb $4 $5 loc) loc
-  }
 ;
 
 let_binding_body:
@@ -3553,8 +3529,8 @@ mark_position_typ
   * Reason types where tuples require grouping:
   * -------------------
   * Simple types are implicitly non-arrowed.
-  * Non arrowed types may be shown in the trailing positino of the curried sugar
-  * function/functor bindings, but it doesn't have to be simple.
+  * Non arrowed types may be shown in the trailing positino of the curried
+  * sugar function/functor bindings, but it doesn't have to be simple.
   *
   * let x ... :non_arrowed_type => ..
   *
@@ -4053,22 +4029,6 @@ attribute: LBRACKETAT attr_id payload RBRACKET { ($2, $3) };
 item_attribute: LBRACKETATAT attr_id payload RBRACKET { ($2, $3) };
 
 floating_attribute: LBRACKETATATAT attr_id payload RBRACKET {($2, $3)};
-
-item_extension_sugar:
-  /**
-   * Note, this form isn't really super useful, but wouldn't cause any parser
-   * conflicts. Not supporting it though just to avoid having to write the
-   * pretty printing logic.
-   *
-   *   [@attrsOnExtension] %extSugarId [@attrOnLet] LET ..
-   *
-   * We won't document it though, and probably won't format it as such.
-   *  | PERCENT attr_id item_attribute item_attribute* {
-   *     ($3::$4, $2)
-   *    }
-   */
-  PERCENT attr_id { ([], $2) }
-;
 
 extension:
   LBRACKETPERCENT attr_id payload RBRACKET { ($2, $3) }
