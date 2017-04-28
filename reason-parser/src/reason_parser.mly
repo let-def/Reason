@@ -1607,7 +1607,7 @@ mark_position_mty
     }
   ) {$1};
 
-signature: terminated(signature_item, SEMI)* { $1 };
+signature: terminated(signature_item, SEMI?)* { $1 };
 
 signature_item:
 mark_position_sig
