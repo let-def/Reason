@@ -1,26 +1,58 @@
-#!/bin/sh
+ppxDerivingAndResultStub="module Ppx_deriving_show = struct let sig_of_type ~options ~path decl = [] let str_of_type ~options ~path typ = [] end module Result = struct type ('a, 'b) result = Ok of 'a | Error of 'b end open Result"
+resultStub="module Result = struct type ('a, 'b) result = Ok of 'a | Error of 'b end open Result"
 
-# Prerequisite: have `menhir` and `ocamlopt` available.
+menhirSuggestedLib=`menhir --suggest-menhirLib`
 
-# call the makefile of the root directory
-echo "* Build Reason itself"
-cd $(dirname "$0")
-make -C .. || true
+# copied over from ~/.esy/store-3.x.x/_build/opam_alpha__slash__ppx___tools___versioned-5.0.0-f6cc53982be397d21440d9c55c42b0050e891de4
+# and modified according to the README
+ppxToolsVersionedTargetDir=./ppxTools
+# copied over from ~/.esy/store-3.x.x/_build/opam_alpha__slash__ocaml_migrate_parsetree-0.7.0-399416de9584af5975cdc304d32e2b716377916f/_build/default/src/
+# and modified according to the README
+ocamlMigrateParseTreeTargetDir=./omp
+reasonTargetDir=../
 
-echo "* Cleaning before packing"
-rm -f refmt_main.ml
-rm -f reactjs_ppx.ml
+# clean some artifacts
+rm -rf ./*.cm*
+rm -rf ./*.out
+rm -rf ./*.o
+rm -rf ./*.ml
+make clean -C ../
 
-echo "* Packing refmt"
-./node_modules/bs-platform/bin/bspack.exe -I `menhir --suggest-menhirLib` -bs-main Refmt_impl -I ../_build/src -I ../_build -I ../vendor/cmdliner -I ../vendor/easy_format -I ../vendor/ppx_deriving -I ../node_modules/result-actual -o refmt_main.ml
+make -C ../
 
-echo "* Packing reactjs_ppx"
-./node_modules/bs-platform/bin/bspack.exe -I `menhir --suggest-menhirLib` -bs-main Reactjs_jsx_ppx -I ../_build/src -I ../vendor/cmdliner -I ../vendor/easy_format/ -I ../vendor/ppx_deriving/ -I ../node_modules/result-actual -o reactjs_ppx.ml
+./node_modules/bs-platform/bin/bspack.exe \
+  -bs-exclude-I ppx_deriving \
+  -bs-exclude-I ppx_deriving_show \
+  -bs-exclude-I Ppx_deriving_runtime \
+  -bs-main Refmt_impl \
+  -prelude-str "$ppxDerivingAndResultStub" \
+  -I "$menhirSuggestedLib" \
+  -I "$ppxToolsVersionedTargetDir" \
+  -I "$reasonTargetDir" \
+  -I "$reasonTargetDir/_build/src" \
+  -I "$reasonTargetDir/vendor/cmdliner" \
+  -I "$reasonTargetDir/vendor/easy_format" \
+  -I "$ocamlMigrateParseTreeTargetDir" \
+  -bs-MD \
+  -o "./refmt_main.ml"
 
-# to compile into binaries: https://github.com/bloomberg/bucklescript/blob/b515a95c5a5740d59cf7eaa9c4fd46863598197f/jscomp/bin/Makefile#L29-L33
-# you only need to compile these to test that the bundling worked. Otherwise,
-# just copy paste the *.ml files to BuckleScript and submit a PR. Their
-# makefiles containing the same compiling instructions will take care of
-# compiling to binaries.
-ocamlopt.opt -I +compiler-libs ocamlcommon.cmxa refmt_main.mli refmt_main.ml -o refmt.exe
-ocamlopt.opt -I +compiler-libs ocamlcommon.cmxa reactjs_ppx.mli reactjs_ppx.ml -o reactjs_jsx_ppx.exe
+./node_modules/bs-platform/bin/bspack.exe \
+  -bs-main Reactjs_jsx_ppx \
+  -prelude-str "$resultStub" \
+  -I "$reasonTargetDir/_build/src" \
+  -I "$ocamlMigrateParseTreeTargetDir" \
+  -bs-MD \
+  -o "./reactjs_ppx.ml"
+
+./node_modules/bs-platform/bin/bspack.exe \
+  -bs-main Reactjs_jsx_ppx_2 \
+  -prelude-str "$resultStub" \
+  -I "$reasonTargetDir/_build/src" \
+  -I "$ocamlMigrateParseTreeTargetDir" \
+  -bs-MD \
+  -o "./reactjs_ppx_2.ml"
+
+# finally, actually compile all 3 files
+ocamlopt -no-alias-deps -I +compiler-libs ocamlcommon.cmxa "refmt_main.ml" -o "refmt_main.out"
+ocamlopt -no-alias-deps -I +compiler-libs ocamlcommon.cmxa  "reactjs_ppx.ml" -o "reactjs_ppx.out"
+ocamlopt -no-alias-deps -I +compiler-libs ocamlcommon.cmxa  "reactjs_ppx_2.ml" -o "reactjs_ppx_2.out"

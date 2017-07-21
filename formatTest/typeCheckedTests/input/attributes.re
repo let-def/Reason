@@ -233,6 +233,8 @@ and anotherClassType = {
   pub bar: int;
 };
 
+class type _x = [@bs]{ pub height : int };
+
 class type _y { [@bs.set] pub height : int };
 
 [@bs] class type _z { pub height : int };
@@ -317,11 +319,30 @@ external render : (reactElement, element) => unit = "render";
 external f : (int) => int = "f";
 
 [@bs.val] [@bs.module "react"] [@bs.splice]
-external createCompositeElementInternalHack 
-  : (reactClass, Js.t({.. reasonProps : 'props}), array(reactElement)) => reactElement 
+external createCompositeElementInternalHack
+  : (reactClass, Js.t({.. reasonProps : 'props}), array(reactElement)) => reactElement
   = "createElement";
 
 external add_nat: (int, int) => int = "add_nat_bytecode" "add_nat_native";
 
-[@bs.module "Bar"] [@ocaml.deprecated "Use bar instead. It's a much cooler function. This string needs to be a little long"]
+[@@bs.module "Bar"] [@@ocaml.deprecated "Use bar instead. It's a much cooler function. This string needs to be a little long"]
 external foo : (bool) => bool = "";
+
+/* Attributes on an entire polymorphic variant leaf */
+external readFileSync :
+  name::string =>
+  ([ `utf8
+   | `my_name [@bs.as "ascii"]
+   ] [@bs.string]) =>
+  string = ""
+  [@@bs.module "fs"];
+
+external readFileSync2 :
+  name::string =>
+  ([ `utf8 [@bs.as "ascii"] | `my_name [@bs.as "ascii"] ] [@bs.string]) =>
+  string = ""
+  [@@bs.module "fs"];
+
+/* Ensure that attributes on extensions are printed */
+[@@@test
+  [%%extension] [@@attr]; ];

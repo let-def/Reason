@@ -206,9 +206,12 @@ type gadtType('x) =
 
 [@floatingTopLevelStructureItem hello];
 
-[@itemAttributeOnEval] print_string("hello");
+[@itemAttributeOnEval]
+print_string("hello");
 
+[@itemAttrOnFirst]
 let firstBinding = "first"
+[@itemAttrOnSecond]
 and secondBinding = "second";
 
 
@@ -290,6 +293,10 @@ and anotherClassType = {
   pub foo: int;
   pub bar: int
 };
+
+class type _x = {
+  pub height: int
+} [@bs];
 
 class type _y = {
   [@bs.set] pub height: int
@@ -403,5 +410,25 @@ external add_nat : (int, int) => int =
 [@ocaml.deprecated
   "Use bar instead. It's a much cooler function. This string needs to be a little long"
 ]
-external foo : bool => bool =
-  "";
+external foo : bool => bool = "";
+
+/* Attributes on an entire polymorphic variant leaf */
+external readFileSync :
+  name::string =>
+  [ | `utf8 | `my_name [@bs.as "ascii"]]
+  [@bs.string] =>
+  string =
+  "" [@@bs.module "fs"];
+
+external readFileSync2 :
+  name::string =>
+  [
+    | `utf8 [@bs.as "ascii"]
+    | `my_name [@bs.as "ascii"]
+  ]
+  [@bs.string] =>
+  string =
+  "" [@@bs.module "fs"];
+
+/* Ensure that attributes on extensions are printed */
+[@@@test [%%extension] [@@attr]];

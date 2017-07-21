@@ -1,31 +1,16 @@
 Reason: Friendly Syntax & Toolchain for OCaml [![Build Status](https://travis-ci.org/facebook/reason.svg?branch=master)](https://travis-ci.org/facebook/reason) [![CircleCI](https://circleci.com/gh/facebook/reason/tree/master.svg?style=svg)](https://circleci.com/gh/facebook/reason/tree/master)
 =========================================
 
-Getting Started
----------------
+## [Getting Started](https://reasonml.github.io/guide/javascript/quickstart)
 
-[JS Workflow](http://facebook.github.io/reason/jsWorkflow.html)
-[Native Workflow](http://facebook.github.io/reason/nativeWorkflow.html)
-
-Community
-=======
-
-Come say hi!
-
-- [Discord](https://discord.gg/reasonml)
-- [Twitter](https://twitter.com/reasonml)
-- [Stack Overflow](http://stackoverflow.com/questions/tagged/reason)
-- IRC (freenode #reasonml)
-
-We also maintain [BuckleTypes](https://github.com/BuckleTypes), where community members submit Reason/OCaml JavaScript bindings.
-
+## [Community](https://reasonml.github.io/community/)
 
 Contributing
 ---------------
 
 ### Documentations
 
-The docs are in the [docs folder](https://github.com/facebook/reason/tree/master/docs) and the corresponding README there that describes the docs contribution method.
+The doc repo lives at https://github.com/reasonml/reasonml.github.io
 
 ### Codebase
 
@@ -44,9 +29,8 @@ opam init
 opam update
 opam switch 4.03.0
 eval $(opam config env)
-git clone git@github.com:facebook/reason.git
+git clone https://github.com/facebook/reason.git
 cd reason
-opam pin add -y reason-parser reason-parser
 opam pin add -y reason .
 ```
 

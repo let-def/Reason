@@ -321,7 +321,7 @@ a:hover {
 .content h2,
 .content .big-heading,
 body.big-h3 .content h3 {
-  padding-top: 80px;
+  padding-top: 40px;
 }
 .content h1:before,
 .content h2:before,
@@ -946,8 +946,16 @@ code .comment {
  * Algolia theme
  */
 
-#agolia-search {
+#algolia-search {
   height: 20px;
+  margin-left: 10px;
+}
+
+/**/
+
+.header-icon {
+  height: 20px;
+  width: 20px;
 }
 
 /* ----------------------------------------------------------------------------
