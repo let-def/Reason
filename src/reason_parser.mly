@@ -2669,12 +2669,10 @@ parenthesized_expr:
   | constant              { mkexp (Pexp_constant $1) }
   | jsx                   { $1 }
   | simple_expr_direct_argument { $1 }
-  | LBRACKETBAR expr_list BARRBRACKET
+  | LBRACKETBAR loption(expr_list) BARRBRACKET
     { mkexp (Pexp_array $2) }
   | as_loc(LBRACKETBAR) expr_list as_loc(error)
     { unclosed_exp (with_txt $1 "[|") (with_txt $3 "|]") }
-  | LBRACKETBAR BARRBRACKET
-    { mkexp (Pexp_array []) }
   /* Not sure why this couldn't have just been below_SHARP (Answer: Being
    * explicit about needing to wait for "as") */
   | as_loc(constr_longident) %prec prec_constant_constructor
