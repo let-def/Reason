@@ -631,6 +631,10 @@ rule token = parse
       }
 
 and enter_comment = parse
+   | "//" ([^'\010']* newline as line)
+      { COMMENT (line, Location.curr lexbuf) }
+   | "//" ([^'\010']* eof as line)
+      { COMMENT (line ^ "\n", Location.curr lexbuf) }
   | "/*" ("*" "*"+)?
       { set_lexeme_length lexbuf 2;
         let start_loc = Location.curr lexbuf  in
