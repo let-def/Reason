@@ -2978,10 +2978,12 @@ class printer  ()= object(self:'self)
     let recordRow pld =
       let hasPunning = recordRowIsPunned pld in
       let name = if hasPunning then
-          SourceMap (pld.pld_name.loc, makeList [atom pld.pld_name.txt;])
+          [atom pld.pld_name.txt]
         else
-          SourceMap (pld.pld_name.loc, makeList [atom pld.pld_name.txt; atom ":"])
+          [atom pld.pld_name.txt; atom ":"]
       in
+      let name = SourceMap (pld.pld_name.loc, makeList name) in
+      let name = self#attach_std_attrs pld.pld_attributes name in
       let withMutable =
         match pld.pld_mutable with
         | Immutable -> name
