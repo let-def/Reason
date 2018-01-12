@@ -51,6 +51,7 @@
   (modules
    (lexer_warning
     syntax_util
+    symbolic_format
     reason_comment
     reason_layout
     reason_heuristics
