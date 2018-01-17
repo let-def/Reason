@@ -2087,35 +2087,32 @@ let insertComment layout comment =
 let insertComments node comments =
   List.fold_left insertComment node comments
 
-let rec layoutToEasyFormat_ = function
-  | Sequence (listConfig, subLayouts) ->
-     easyListWithConfig listConfig (List.map layoutToEasyFormat_ subLayouts)
-  | Label (labelFormatter, left, right) ->
-     labelFormatter (layoutToEasyFormat_ left) (layoutToEasyFormat_ right)
-  | SourceMap (_, subLayout) ->
-     layoutToEasyFormat_ subLayout
-  | WithEOLComment (_, sub) ->
-     layoutToEasyFormat_ sub
-  | Easy e -> e
-
-let layoutToEasyFormatNoComments layoutNode =
-  layoutToEasyFormat_ layoutNode
-
-
-let layoutToEasyFormat layoutNode comments =
-  (* print_layout layoutNode; *)
-  let layout = layoutNode in
-  let revComments = List.rev comments in
-  let (singleLineComments, nonSingleLineComments) =
-    List.partition Comment.is_single_line revComments in
-  (* TODO: Stop generating multiple versions of the tree, and instead generate one new tree. *)
-  let layout = insertComments layout nonSingleLineComments in
-  let layout = consolidateSeparator layout in
-  let layout = insertComments layout singleLineComments in
-  let layout = insertLinesAboveItems layout in
-  let easyFormat= layoutToEasyFormat_ layout in
-  (* print_easy_rec easyFormat; *)
-  makeEasyList ~break:Always_rec ~indent:0 ~inline:(true, true) [easyFormat]
+let layoutToEasyFormat ?comments layout =
+  let rec traverse = function
+    | Sequence (listConfig, subLayouts) ->
+      easyListWithConfig listConfig (List.map traverse subLayouts)
+    | Label (labelFormatter, left, right) ->
+      labelFormatter (traverse left) (traverse right)
+    | SourceMap (_, subLayout) ->
+      traverse subLayout
+    | WithEOLComment (_, sub) ->
+      traverse sub
+    | Easy e -> e
+  in
+  (* print_layout layout; *)
+  match comments with
+  | None -> traverse layout
+  | Some comments ->
+    let (singleLineComments, nonSingleLineComments) =
+      List.partition Comment.is_single_line (List.rev comments) in
+    (* TODO: Stop generating multiple versions of the tree, and instead generate one new tree. *)
+    let layout = insertComments layout nonSingleLineComments in
+    let layout = consolidateSeparator layout in
+    let layout = insertComments layout singleLineComments in
+    let layout = insertLinesAboveItems layout in
+    let easyFormat = traverse layout in
+    (* print_easy_rec easyFormat; *)
+    makeEasyList ~break:Always_rec ~indent:0 ~inline:(true, true) [easyFormat]
 
 let partitionFinalWrapping listTester wrapFinalItemSetting x =
   let rev = List.rev x in
@@ -6864,13 +6861,13 @@ let easy = new printer ()
 
 let toplevel_phrase f x =
   match x with
-    | Ptop_def (s) ->
-      easyFormatToFormatter f (layoutToEasyFormatNoComments (easy#structure s))
-    | Ptop_dir (s, da) -> print_string "(* top directives not supported *)"
+  | Ptop_def (s) ->
+    easyFormatToFormatter f (layoutToEasyFormat (easy#structure s))
+  | Ptop_dir (s, da) -> print_string "(* top directives not supported *)"
 
 let case_list f x =
   let l = easy#case_list x in
-  (List.iter (fun x -> easyFormatToFormatter f (layoutToEasyFormatNoComments x)) l)
+  (List.iter (fun x -> easyFormatToFormatter f (layoutToEasyFormat x)) l)
 
 let top_phrase f x =
   pp_print_newline f () ;
@@ -6977,15 +6974,15 @@ let preprocessing_mapper =
       (add_explicit_arity_mapper default_mapper))
 
 let core_type f x =
-  easyFormatToFormatter f (layoutToEasyFormatNoComments (easy#core_type (apply_mapper_to_type x preprocessing_mapper)))
+  easyFormatToFormatter f (layoutToEasyFormat (easy#core_type (apply_mapper_to_type x preprocessing_mapper)))
 let pattern f x =
-  easyFormatToFormatter f (layoutToEasyFormatNoComments (easy#pattern (apply_mapper_to_pattern x preprocessing_mapper)))
+  easyFormatToFormatter f (layoutToEasyFormat (easy#pattern (apply_mapper_to_pattern x preprocessing_mapper)))
 let signature (comments : Comment.t list) f x =
-  easyFormatToFormatter f (layoutToEasyFormat (easy#signature (apply_mapper_to_signature x preprocessing_mapper)) comments)
+  easyFormatToFormatter f (layoutToEasyFormat ~comments (easy#signature (apply_mapper_to_signature x preprocessing_mapper)))
 let structure (comments : Comment.t list) f x =
-  easyFormatToFormatter f (layoutToEasyFormat (easy#structure (apply_mapper_to_structure x preprocessing_mapper)) comments)
+  easyFormatToFormatter f (layoutToEasyFormat ~comments (easy#structure (apply_mapper_to_structure x preprocessing_mapper)))
 let expression f x =
-  easyFormatToFormatter f (layoutToEasyFormatNoComments (easy#unparseExpr (apply_mapper_to_expr x preprocessing_mapper)))
+  easyFormatToFormatter f (layoutToEasyFormat (easy#unparseExpr (apply_mapper_to_expr x preprocessing_mapper)))
 let case_list = case_list
 end
 in
