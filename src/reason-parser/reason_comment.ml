@@ -11,9 +11,9 @@ let string_of_category = function
   | SingleLine -> "SingleLine"
 
 type t = {
-  text: string;
-  category: category;
   location: Location.t;
+  category: category;
+  text: string;
 }
 
 let category t = t.category
