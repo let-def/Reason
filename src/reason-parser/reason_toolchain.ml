@@ -89,6 +89,8 @@ module To_current = Convert(OCaml_404)(OCaml_current)
 
 module S = MenhirLib.General (* Streams *)
 
+module Comment = Reason_comment
+
 let setup_lexbuf use_stdin filename =
   (* Use custom method of lexing from the channel to keep track of the input so that we can
      reformat tokens in the toolchain*)
@@ -107,9 +109,9 @@ let setup_lexbuf use_stdin filename =
 
 module type Toolchain = sig
   (* Parsing *)
-  val core_type_with_comments: Lexing.lexbuf -> (Parsetree.core_type * Reason_pprint_ast.commentWithCategory)
-  val implementation_with_comments: Lexing.lexbuf -> (Parsetree.structure * Reason_pprint_ast.commentWithCategory)
-  val interface_with_comments: Lexing.lexbuf -> (Parsetree.signature * Reason_pprint_ast.commentWithCategory)
+  val core_type_with_comments: Lexing.lexbuf -> (Parsetree.core_type * Reason_comment.t list)
+  val implementation_with_comments: Lexing.lexbuf -> (Parsetree.structure * Reason_comment.t list)
+  val interface_with_comments: Lexing.lexbuf -> (Parsetree.signature * Reason_comment.t list)
 
   val core_type: Lexing.lexbuf -> Parsetree.core_type
   val implementation: Lexing.lexbuf -> Parsetree.structure
@@ -118,14 +120,14 @@ module type Toolchain = sig
   val use_file: Lexing.lexbuf -> Parsetree.toplevel_phrase list
 
   (* Printing *)
-  val print_interface_with_comments: Format.formatter -> (Parsetree.signature * Reason_pprint_ast.commentWithCategory) -> unit
-  val print_implementation_with_comments: Format.formatter -> (Parsetree.structure * Reason_pprint_ast.commentWithCategory) -> unit
+  val print_interface_with_comments: Format.formatter -> (Parsetree.signature * Reason_comment.t list) -> unit
+  val print_implementation_with_comments: Format.formatter -> (Parsetree.structure * Reason_comment.t list) -> unit
 
 end
 
 module type Toolchain_spec = sig
   val safeguard_parsing: Lexing.lexbuf ->
-    (unit -> ('a * Reason_pprint_ast.commentWithCategory)) -> ('a * Reason_pprint_ast.commentWithCategory)
+    (unit -> ('a * Reason_comment.t list)) -> ('a * Reason_comment.t list)
 
   type token
 
@@ -141,8 +143,8 @@ module type Toolchain_spec = sig
   val toplevel_phrase: Lexing.lexbuf -> Parsetree.toplevel_phrase
   val use_file: Lexing.lexbuf -> Parsetree.toplevel_phrase list
 
-  val format_interface_with_comments: (Parsetree.signature * Reason_pprint_ast.commentWithCategory) -> Format.formatter -> unit
-  val format_implementation_with_comments: (Parsetree.structure * Reason_pprint_ast.commentWithCategory) -> Format.formatter -> unit
+  val format_interface_with_comments: (Parsetree.signature * Reason_comment.t list) -> Format.formatter -> unit
+  val format_implementation_with_comments: (Parsetree.structure * Reason_comment.t list) -> Format.formatter -> unit
 end
 
 let rec left_expand_comment should_scan_prev_line source loc_start =
@@ -198,8 +200,10 @@ module Create_parse_entrypoint (Toolchain_impl: Toolchain_spec) :Toolchain = str
       let contents = Buffer.contents input_copy in
       Buffer.reset input_copy;
       if contents = "" then
-          let _  = Parsing.clear_parser() in
-          (ast, unmodified_comments |> List.map (fun (txt, phys_loc) -> (txt, Reason_pprint_ast.Regular, phys_loc)))
+        let _  = Parsing.clear_parser() in
+        let make_regular (text, location) =
+          Comment.make ~location Comment.Regular text in
+        (ast, List.map make_regular unmodified_comments)
       else
         let modified_and_comment_with_category =
           List.map (fun (str, physical_loc) ->
@@ -233,15 +237,18 @@ module Create_parse_entrypoint (Toolchain_impl: Toolchain_spec) :Toolchain = str
               let end_pos_plus_one = physical_loc.loc_end.pos_cnum in
               let comment_length = (end_pos_plus_one - physical_loc.loc_start.pos_cnum - 4) in
               let original_comment_contents = String.sub contents (physical_loc.loc_start.pos_cnum + 2) comment_length in
-              let t = match (eol_start, eol_end) with
-                | (true, true) -> Reason_pprint_ast.SingleLine
-                | (false, true) -> Reason_pprint_ast.EndOfLine
-                | _ -> Reason_pprint_ast.Regular
+              let category = match (eol_start, eol_end) with
+                | (true, true) -> Comment.SingleLine
+                | (false, true) -> Comment.EndOfLine
+                | _ -> Comment.Regular
               in
-              let start_pos = virtual_start_pos in
-              (original_comment_contents, t,
-               {physical_loc with loc_start = {physical_loc.loc_start with pos_cnum = start_pos};
-                                  loc_end = {physical_loc.loc_end with pos_cnum = virtual_end_pos}})
+              let location =
+                let {loc_start; loc_end; loc_ghost} = physical_loc in
+                { loc_start = {loc_start with pos_cnum = virtual_start_pos};
+                  loc_end = {loc_end with pos_cnum = virtual_end_pos};
+                  loc_ghost }
+              in
+              Comment.make ~location category original_comment_contents
             )
             unmodified_comments
         in
