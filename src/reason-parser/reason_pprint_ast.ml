@@ -1664,13 +1664,13 @@ let formatComment_ txt =
     let lines = zero :: List.map padNonOpeningLine (one::tl) in
     makeList ~inline:(true, true) ~indent:0 ~break:Always_rec (List.map atom lines)
 
-let formatComment ?(locOpt=Location.none) comment =
+let formatComment comment =
   let layout = formatComment_ comment in
-  (*let loc = comment.Comment.location in*)
-  if locOpt = Location.none then
+  let loc = comment.Comment.location in
+  if loc = Location.none then
     layout
   else
-    SourceMap (locOpt, layout)
+    SourceMap (loc, layout)
 
 (** [hasComment layout] checks if a layout has comment attached to it *)
 let rec hasComment = function
@@ -1948,7 +1948,7 @@ let rec insertSingleLineComment layout comment =
            match afterComment with
       (* Nothing in the list is after comment, attach comment to the statement before the comment *)
       | [] ->
-        let break sublayout = breakline sublayout (formatComment ~locOpt:comment.Comment.location comment) in
+        let break sublayout = breakline sublayout (formatComment comment) in
         Sequence (listConfig, Syntax_util.map_last break beforeComment)
            | hd::tl ->
               let afterComment =
@@ -1977,7 +1977,7 @@ let rec insertSingleLineComment layout comment =
       | (Some loc1, Some loc2) when beforeLoc location loc2 ->
               (left, prependSingleLineComment comment right)
       | _ ->
-        (left, breakline right (formatComment ~locOpt:comment.Comment.location comment))
+        (left, breakline right (formatComment comment))
          in
          Label (formatter, newLeft, newRight)
 
