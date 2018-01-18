@@ -24,10 +24,6 @@ and listConfig = {
   newlinesAboveComments: int;
   (* Newlines above doc comments *)
   newlinesAboveDocComments: int;
-  (* If you are only grouping something for the sake of visual appearance, and
-   * not forming an actual conceptual sequence of items, then this is often
-   * useful. For example, if you're appending a semicolon etc. *)
-  interleaveComments: bool;
   (*
    * Whether or not to render the final separator. TODO: Add ability to only
    * render final sep (or first sep in the case of `!sepLeft` when it is next to a
@@ -158,38 +154,21 @@ let dump_easy ppf easy =
   in
   traverse "" easy
 
-let list_param ~indent_body = {
-  Easy_format.space_after_opening = false;
-  space_after_separator = false;
-  space_before_separator = false;
-  separators_stick_left = true;
-  space_before_closing = false;
-  stick_to_label = true;
-  align_closing = true;
-  wrap_body = `No_breaks;
-  indent_body;
-  list_style = Some "list";
-  opening_style = None;
-  body_style = None;
-  separator_style = None;
-  closing_style = None;
-}
-
-let easy_list_param_of_listConfig
+let easy_list_param_of_listConfig list_param
     { break; indent; sepLeft; preSpace; postSpace; sep;
       wrap = (opn, cls); inline = (inlineStart, inlineEnd);
       pad = (padOpn, padCls);
     }
   =
   (opn, sep, cls, {
-    list_param with
-      wrap_body = (
+      list_param with
+      Easy_format. wrap_body = (
         match break with
-          | Layout.Never -> `No_breaks
-          (* Yes, `Never_wrap is a horrible name - really means "if needed". *)
-          | Layout.IfNeed -> `Never_wrap
-          | Layout.Always -> `Force_breaks
-          | Layout.Always_rec -> `Force_breaks_rec
+        | Never -> `No_breaks
+        (* Yes, `Never_wrap is a horrible name - really means "if needed". *)
+        | IfNeed -> `Never_wrap
+        | Always -> `Force_breaks
+        | Always_rec -> `Force_breaks_rec
       );
       indent_body = indent;
       space_after_separator = postSpace;
@@ -198,12 +177,31 @@ let easy_list_param_of_listConfig
       space_before_closing = padCls;
       stick_to_label = inlineStart;
       align_closing = not inlineEnd;
-  })
+    })
 
-let to_easy_format ?comments layout =
+let to_easy_format ?(indent_body=0) layout =
+  let base_param = {
+    Easy_format.space_after_opening = false;
+    space_after_separator = false;
+    space_before_separator = false;
+    separators_stick_left = true;
+    space_before_closing = false;
+    stick_to_label = true;
+    align_closing = true;
+    wrap_body = `No_breaks;
+    indent_body;
+    list_style = Some "list";
+    opening_style = None;
+    body_style = None;
+    separator_style = None;
+    closing_style = None;
+  } in
   let rec traverse = function
     | Sequence (listConfig, subLayouts) ->
-      easyListWithConfig listConfig (List.map traverse subLayouts)
+      Easy_format.List (
+        easy_list_param_of_listConfig base_param listConfig ,
+        List.map traverse subLayouts
+      )
     | Label (labelFormatter, left, right) ->
       labelFormatter (traverse left) (traverse right)
     | SourceMap (_, subLayout) ->
@@ -212,18 +210,4 @@ let to_easy_format ?comments layout =
       traverse sub
     | Easy e -> e
   in
-  (* print_layout layout; *)
-  match comments with
-  | None -> traverse layout
-  | Some comments ->
-    let (singleLineComments, nonSingleLineComments) =
-      List.partition Comment.is_single_line (List.rev comments) in
-    (* TODO: Stop generating multiple versions of the tree, and instead generate one new tree. *)
-    let layout = insertComments layout nonSingleLineComments in
-    let layout = consolidateSeparator layout in
-    let layout = insertComments layout singleLineComments in
-    let layout = insertLinesAboveItems layout in
-    let easyFormat = traverse layout in
-    (* print_easy_rec easyFormat; *)
-    makeEasyList ~break:Always_rec ~indent:0 ~inline:(true, true) [easyFormat]
-
+  traverse layout

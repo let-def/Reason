@@ -1040,7 +1040,24 @@ let isArityClear attrs =
     )
     attrs
 
+let indent_body = settings.listsRecordsIndent * settings.space
 
+let list_settings = {
+  Easy_format.space_after_opening = false;
+  space_after_separator = false;
+  space_before_separator = false;
+  separators_stick_left = true;
+  space_before_closing = false;
+  stick_to_label = true;
+  align_closing = true;
+  wrap_body = `No_breaks;
+  indent_body;
+  list_style = Some "list";
+  opening_style = None;
+  body_style = None;
+  separator_style = None;
+  closing_style = None;
+}
 
 let nullStyle = { Easy_format.atom_style = Some "null" }
 let boolStyle = { Easy_format.atom_style = Some "bool" }
@@ -1069,10 +1086,21 @@ let simplifiedApplicationSettings = {
 }
 
 let easyListSettingsFromListConfig listConfig =
-  let { Layout. break; indent; sepLeft; preSpace; postSpace; sep;
-        wrap = (opn, cls); inline = (inlineStart, inlineEnd);
-        pad = (padOpn, padCls);
-      } = listConfig in
+  let {
+    Layout.
+    break;
+    wrap;
+    inline;
+    indent;
+    sepLeft;
+    preSpace;
+    postSpace;
+    pad;
+    sep;
+  } = listConfig in
+  let (opn, cls) = wrap in
+  let (padOpn, padCls) = pad in
+  let (inlineStart, inlineEnd) = inline in
   (opn, sep, cls, {
     list_settings with
       wrap_body = (
@@ -1096,7 +1124,6 @@ let makeListConfig
     ?(newlinesAboveItems=0)
     ?(newlinesAboveComments=0)
     ?(newlinesAboveDocComments=0)
-    ?(interleaveComments=true)
     ?listConfigIfCommentsInterleaved
     ?(listConfigIfEolCommentsInterleaved)
     ?(renderFinalSep=false)
@@ -1114,7 +1141,6 @@ let makeListConfig
     newlinesAboveItems;
     newlinesAboveComments;
     newlinesAboveDocComments;
-    interleaveComments;
     listConfigIfCommentsInterleaved;
     listConfigIfEolCommentsInterleaved;
     renderFinalSep;
@@ -1138,7 +1164,6 @@ let makeEasyList
     ?(newlinesAboveItems=0)
     ?(newlinesAboveComments=0)
     ?(newlinesAboveDocComments=0)
-    ?(interleaveComments=true)
     ?(renderFinalSep=false)
     ?(break=Layout.Never)
     ?(wrap=("", ""))
@@ -1154,7 +1179,6 @@ let makeEasyList
       ~newlinesAboveItems
       ~newlinesAboveComments
       ~newlinesAboveDocComments
-      ~interleaveComments
       ~renderFinalSep
       ~break
       ~wrap
@@ -1176,7 +1200,6 @@ let makeList
     ?(newlinesAboveItems=0)
     ?(newlinesAboveComments=0)
     ?(newlinesAboveDocComments=0)
-    ?(interleaveComments=true)
     ?listConfigIfCommentsInterleaved
     ?listConfigIfEolCommentsInterleaved
     ?(renderFinalSep=false)
@@ -1194,7 +1217,6 @@ let makeList
       ~newlinesAboveItems
       ~newlinesAboveComments
       ~newlinesAboveDocComments
-      ~interleaveComments
       ?listConfigIfCommentsInterleaved
       ?listConfigIfEolCommentsInterleaved
       ~renderFinalSep
@@ -1221,7 +1243,6 @@ let makeTup l =
 
 let ensureSingleTokenSticksToLabel x =
   makeList
-    ~interleaveComments:true
     ~listConfigIfCommentsInterleaved: (
       fun currentConfig -> {currentConfig with break=Always_rec; postSpace=true; indent=0; inline=(true, true)}
     )
@@ -1908,6 +1929,16 @@ let insertComment layout comment =
 let insertComments node comments =
   List.fold_left insertComment node comments
 
+let renderComments comments layout =
+  let (singleLineComments, nonSingleLineComments) =
+    List.partition Comment.is_single_line (List.rev comments) in
+  (* TODO: Stop generating multiple versions of the tree, and instead generate one new tree. *)
+  let layout = insertComments layout nonSingleLineComments in
+  let layout = consolidateSeparator layout in
+  let layout = insertComments layout singleLineComments in
+  let layout = insertLinesAboveItems layout in
+  layout
+
 let partitionFinalWrapping listTester wrapFinalItemSetting x =
   let rev = List.rev x in
   match (rev, wrapFinalItemSetting) with
@@ -1919,7 +1950,7 @@ let partitionFinalWrapping listTester wrapFinalItemSetting x =
         else
           Some (List.rev revEverythingButLast, last)
 
-let semiTerminated term = makeList ~interleaveComments:false [term; atom ";"]
+let semiTerminated term = makeList [term; atom ";"]
 
 
 (* postSpace is so that when comments are interleaved, we still use spacing rules. *)
@@ -2114,11 +2145,11 @@ let typeApplicationFinalWrapping typeApplicationItems =
 (* add parentheses to binders when they are in fact infix or prefix operators *)
 let protectIdentifier txt =
   if not (needs_parens txt) then atom txt
-  else if needs_spaces txt then makeList ~interleaveComments:false ~wrap:("(", ")") ~pad:(true, true) [atom txt]
+  else if needs_spaces txt then makeList ~wrap:("(", ")") ~pad:(true, true) [atom txt]
   else atom ("(" ^ txt ^ ")")
 
 let protectLongIdentifier longPrefix txt =
-  makeList ~interleaveComments:false [longPrefix; atom "."; protectIdentifier txt]
+  makeList [longPrefix; atom "."; protectIdentifier txt]
 
 let paren: 'a . ?first:space_formatter -> ?last:space_formatter ->
   bool -> (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a -> unit
@@ -2390,7 +2421,7 @@ class printer  ()= object(self:'self)
     | Lident s -> (protectIdentifier s)
     | Ldot(longPrefix, s) ->
         (protectLongIdentifier (self#longident longPrefix) s)
-    | Lapply (y,s) -> makeList ~interleaveComments:false [self#longident y; atom "("; self#longident s; atom ")";]
+    | Lapply (y,s) -> makeList [self#longident y; atom "("; self#longident s; atom ")";]
 
   (* This form allows applicative functors. *)
   method longident_class_or_type_loc x = self#longident x.txt
@@ -3248,7 +3279,7 @@ class printer  ()= object(self:'self)
     | None, _ -> param
     | Some o, _ -> makeList  [param; atom "="; (self#unparseConstraintExpr ~ensureExpr:true o)]
 
-  method access op cls e1 e2 = makeList ~interleaveComments:false [
+  method access op cls e1 e2 = makeList [
     (* Important that this be not breaking - at least to preserve same
        behavior as stock desugarer. It might even be required (double check
        in parser.mly) *)
@@ -3664,7 +3695,7 @@ class printer  ()= object(self:'self)
       ) in
       let leftItm =
         label
-          (makeList ~interleaveComments:false [self#simple_enough_to_be_lhs_dot_send leftExpr; atom "."])
+          (makeList [self#simple_enough_to_be_lhs_dot_send leftExpr; atom "."])
           (self#longident_loc li) in
       let expr = label ~space:true (makeList ~postSpace:true [leftItm; atom updateToken]) rightItm in
       SpecificInfixPrecedence ({reducePrecedence=(Token updateToken); shiftPrecedence=(Token updateToken)}, LayoutNode expr)
@@ -6408,11 +6439,11 @@ class printer  ()= object(self:'self)
       *)
       let bar xx = makeList ~postSpace:true [atom "|"; xx] in
       let appendWhereAndArrow p = match pc_guard with
-          | None -> makeList ~interleaveComments:false ~postSpace:true [p; atom "=>"]
+          | None -> makeList ~postSpace:true [p; atom "=>"]
           | Some g ->
             (* when x should break as a whole - extra list added around it to make it break as one *)
             let withWhen = label ~space:true p (makeList ~break:Layout.Never ~inline:(true, true) ~postSpace:true [label ~space:true (atom "when") (self#unparseExpr g)]) in
-            makeList ~interleaveComments:false ~inline:(true, true) ~postSpace:true [withWhen; atom "=>"]
+            makeList ~inline:(true, true) ~postSpace:true [withWhen; atom "=>"]
       in
 
       let rec appendWhereAndArrowToLastOr = function
@@ -6654,15 +6685,20 @@ end;;
 
 let easy = new printer ()
 
+let format_layout ppf ?comments layout =
+  let layout = match comments with
+    | None -> layout
+    | Some comments -> renderComments comments layout
+  in
+  easyFormatToFormatter ppf (Layout.to_easy_format ~indent_body layout)
+
 let toplevel_phrase f x =
   match x with
-  | Ptop_def (s) ->
-    easyFormatToFormatter f (layoutToEasyFormat (easy#structure s))
+  | Ptop_def (s) -> format_layout f (easy#structure s)
   | Ptop_dir (s, da) -> print_string "(* top directives not supported *)"
 
 let case_list f x =
-  let l = easy#case_list x in
-  (List.iter (fun x -> easyFormatToFormatter f (layoutToEasyFormat x)) l)
+  List.iter (format_layout f) (easy#case_list x)
 
 let top_phrase f x =
   pp_print_newline f () ;
@@ -6769,15 +6805,20 @@ let preprocessing_mapper =
       (add_explicit_arity_mapper default_mapper))
 
 let core_type f x =
-  easyFormatToFormatter f (layoutToEasyFormat (easy#core_type (apply_mapper_to_type x preprocessing_mapper)))
+  format_layout f
+    (easy#core_type (apply_mapper_to_type x preprocessing_mapper))
 let pattern f x =
-  easyFormatToFormatter f (layoutToEasyFormat (easy#pattern (apply_mapper_to_pattern x preprocessing_mapper)))
+  format_layout f
+    (easy#pattern (apply_mapper_to_pattern x preprocessing_mapper))
 let signature (comments : Comment.t list) f x =
-  easyFormatToFormatter f (layoutToEasyFormat ~comments (easy#signature (apply_mapper_to_signature x preprocessing_mapper)))
+  format_layout f ~comments
+    (easy#signature (apply_mapper_to_signature x preprocessing_mapper))
 let structure (comments : Comment.t list) f x =
-  easyFormatToFormatter f (layoutToEasyFormat ~comments (easy#structure (apply_mapper_to_structure x preprocessing_mapper)))
+  format_layout f ~comments
+    (easy#structure (apply_mapper_to_structure x preprocessing_mapper))
 let expression f x =
-  easyFormatToFormatter f (layoutToEasyFormat (easy#unparseExpr (apply_mapper_to_expr x preprocessing_mapper)))
+  format_layout f
+    (easy#unparseExpr (apply_mapper_to_expr x preprocessing_mapper))
 let case_list = case_list
 end
 in
