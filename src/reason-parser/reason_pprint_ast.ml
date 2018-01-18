@@ -716,8 +716,6 @@ let is_single_unit_construct exprList =
     | _ -> false)
   | _ -> false
 
-let pp = Format.fprintf
-
 type funcReturnStyle =
   | ReturnValOnSameLine
 
@@ -1657,33 +1655,38 @@ let protectIdentifier txt =
 let protectLongIdentifier longPrefix txt =
   makeList [longPrefix; atom "."; protectIdentifier txt]
 
-let paren: 'a . ?first:space_formatter -> ?last:space_formatter ->
-  bool -> (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a -> unit
-  = fun  ?(first=("": _ format6)) ?(last=("": _ format6)) b fu f x ->
-    if b then (pp f "("; pp f first; fu f x; pp f last; pp f ")")
-    else fu f x
+let paren b fu f x =
+  if b
+  then Format.fprintf f "(%a)" fu x
+  else fu f x
 
-let constant_string f s = pp f "%S" s
+let constant_string f s = Format.fprintf f "%S" s
 
-let tyvar f str = pp f "'%s" str
+let tyvar f str = Format.fprintf f "'%s" str
 
 (* In some places parens shouldn't be printed for readability:
  * e.g. Some((-1)) should be printed as Some(-1)
  * In `1 + (-1)` -1 should be wrapped in parens for readability
- *)
+*)
 let constant ?(parens=true) f = function
-  | Pconst_char i -> pp f "%C"  i
-  | Pconst_string (i, None) -> pp f "%S" i
-  | Pconst_string (i, Some delim) -> pp f "{%s|%s|%s}" delim i delim
+  | Pconst_char i ->
+    Format.fprintf f "%C"  i
+  | Pconst_string (i, None) ->
+    Format.fprintf f "%S" i
+  | Pconst_string (i, Some delim) ->
+    Format.fprintf f "{%s|%s|%s}" delim i delim
   | Pconst_integer (i, None) ->
-      paren (parens && i.[0] = '-') (fun f -> pp f "%s") f i
+    paren (parens && i.[0] = '-')
+      (fun f -> Format.fprintf f "%s") f i
   | Pconst_integer (i, Some m) ->
-      paren (parens && i.[0] = '-') (fun f (i, m) -> pp f "%s%c" i m) f (i,m)
+    paren (parens && i.[0] = '-')
+      (fun f (i, m) -> Format.fprintf f "%s%c" i m) f (i,m)
   | Pconst_float (i, None) ->
-      paren (parens && i.[0] = '-') (fun f -> pp f "%s") f i
+    paren (parens && i.[0] = '-')
+      (fun f -> Format.fprintf f "%s") f i
   | Pconst_float (i, Some m) ->
-      paren (parens && i.[0] = '-') (fun f (i,m) ->
-      pp f "%s%c" i m) f (i,m)
+    paren (parens && i.[0] = '-')
+      (fun f (i,m) -> Format.fprintf f "%s%c" i m) f (i,m)
 
 let is_punned_labelled_expression e lbl = match e.pexp_desc with
   | Pexp_ident { txt; _ }
