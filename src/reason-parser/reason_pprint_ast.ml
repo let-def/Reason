@@ -60,27 +60,7 @@ open Ast_mapper
 module Comment = Reason_comment
 module Layout = Reason_layout
 
-let (|>) = fun x f -> f x
-let (<|) = fun f x -> f x
-
 exception NotPossible of string
-
-let case_not_implemented msg loc (file, line, column) =
-  Format.fprintf Format.err_formatter
-    "Not Implemented Yet %s %a (from: %s:%s:%s)@."
-    msg
-    Location.print_loc loc
-    file
-    (string_of_int line)
-    (string_of_int column)
-
-let exprDescrString x =
-  x.pexp_loc.loc_start.Lexing.pos_fname ^
-    "[" ^
-    (string_of_int x.pexp_loc.loc_start.Lexing.pos_lnum) ^
-    ", " ^
-    (string_of_int x.pexp_loc.loc_end.Lexing.pos_lnum) ^
-    "]"
 
 type ruleInfoData = {
   reducePrecedence: precedence;
@@ -445,9 +425,6 @@ let unary_minus_prefix_symbols  = [ "~-"; "~-."] ;;
 let unary_plus_prefix_symbols  = ["~+"; "~+." ] ;;
 let infix_symbols = [ '='; '<'; '>'; '@'; '^'; '|'; '&'; '+'; '-'; '*'; '/';
                       '$'; '%'; '\\'; '#' ]
-let operator_chars = [ '!'; '$'; '%'; '&'; '*'; '+'; '-'; '.'; '/';
-                       ':'; '<'; '='; '>'; '?'; '@'; '^'; '|'; '~' ]
-let numeric_chars  = [ '0'; '1'; '2'; '3'; '4'; '5'; '6'; '7'; '8'; '9' ]
 
 let special_infix_strings =
   ["asr"; "land"; "lor"; "lsl"; "lsr"; "lxor"; "mod"; "or"; ":="; "!="; "!=="]
@@ -599,7 +576,7 @@ let rules = [
 ]
 
 (* remove all prefixing backslashes, e.g. \=== becomes === *)
-let rec without_prefixed_backslashes str =
+let without_prefixed_backslashes str =
   if str = "" then str
   else if String.get str 0 = '\\' then String.sub str 1 (String.length str - 1)
   else str
@@ -662,10 +639,6 @@ let printedStringAndFixityExpr = function
   | {pexp_desc = Pexp_ident {txt=Lident l}} -> printedStringAndFixity l
   | _ -> Normal
 
-let is_predef_option = function
-  | (Ldot (Lident "*predef*","option")) -> true
-  | _ -> false
-
 (* which identifiers are in fact operators needing parentheses *)
 let needs_parens txt =
   match printedStringAndFixity txt with
@@ -681,27 +654,6 @@ let needs_parens txt =
    syntax. This isn't needed for comment syntax /* */ *)
 let needs_spaces txt =
   txt.[0]='*' || txt.[String.length txt - 1] = '*'
-
-(* add parentheses to binders when they are in fact infix or prefix operators *)
-let protect_ident ppf txt =
-  let format : (_, _, _) format =
-    if not (needs_parens txt) then "%s"
-    else if needs_spaces txt then "(@;%s@;)"
-    else "(%s)"
-  in fprintf ppf format txt
-
-let protect_longident ppf print_longident longprefix txt =
-  let format : (_, _, _) format =
-    if not (needs_parens txt) then "%a.%s"
-    else if needs_spaces txt then  "(@;%a.%s@;)"
-    else "(%a.%s)" in
-  fprintf ppf format print_longident longprefix txt
-
-let rec longident f = function
-  | Lident s -> protect_ident f s
-  | Ldot(y,s) -> protect_longident f longident y s
-  | Lapply (y,s) ->
-      fprintf f "%a(%a)" longident y longident s
 
 let rec orList = function (* only consider ((A|B)|C)*)
   | {ppat_desc = Ppat_or (p1, p2)} -> (orList p1) @ (orList p2)
@@ -726,13 +678,6 @@ type construct =
   | `normal
   | `simple of Longident.t
   | `tuple ]
-
-type sequence_kind =
-  [ `Array
-  | `List
-  | `Tuple
-  | `ES6List
-  ]
 
 let view_expr x =
   match x.pexp_desc with
@@ -981,9 +926,6 @@ let configure ~width ~assumeExplicitArity ~constructorLists = (
   configuredSettings := {defaultSettings with width; assumeExplicitArity; constructorLists}
 )
 
-let string_of_formatter f x =
-  Format.asprintf "%a" f x
-
 let createFormatter () =
 let module Formatter = struct
 
@@ -1059,66 +1001,7 @@ let list_settings = {
   closing_style = None;
 }
 
-let nullStyle = { Easy_format.atom_style = Some "null" }
-let boolStyle = { Easy_format.atom_style = Some "bool" }
-let intStyle = { Easy_format.atom_style = Some "int" }
-let stringStyle = { Easy_format.atom_style = Some "string" }
 let labelStringStyle = { Easy_format.atom_style = Some "atomClss" }
-let colonStyle = { Easy_format.atom_style = Some "punct" }
-
-let simplifiedApplicationSettings = {
-  list_settings with
-    align_closing = true; (* So the semicolon sticks to end of application *)
-    (* This must be true to support this case:
-
-        let oneNestedInvocationThatWraps = outerFunc (
-          nestedFuncToInvokeThatCausesWrapping
-          []
-        );
-
-       Otherwise, we would get:
-        let oneNestedInvocationThatWraps = outerFunc
-          (nestedFuncToInvokeThatCausesWrapping []);
-    *)
-    stick_to_label = true; (* I don't believe this has a purpose *)
-    space_after_separator = true;
-    wrap_body = `Never_wrap
-}
-
-let easyListSettingsFromListConfig listConfig =
-  let {
-    Layout.
-    break;
-    wrap;
-    inline;
-    indent;
-    sepLeft;
-    preSpace;
-    postSpace;
-    pad;
-    sep;
-  } = listConfig in
-  let (opn, cls) = wrap in
-  let (padOpn, padCls) = pad in
-  let (inlineStart, inlineEnd) = inline in
-  (opn, sep, cls, {
-    list_settings with
-      wrap_body = (
-        match break with
-          | Layout.Never -> `No_breaks
-          (* Yes, `Never_wrap is a horrible name - really means "if needed". *)
-          | Layout.IfNeed -> `Never_wrap
-          | Layout.Always -> `Force_breaks
-          | Layout.Always_rec -> `Force_breaks_rec
-      );
-      indent_body = indent;
-      space_after_separator = postSpace;
-      space_before_separator = preSpace;
-      space_after_opening = padOpn;
-      space_before_closing = padCls;
-      stick_to_label = inlineStart;
-      align_closing = not inlineEnd;
-  })
 
 let makeListConfig
     ?(newlinesAboveItems=0)
@@ -1154,45 +1037,6 @@ let makeListConfig
     postSpace;
     pad;
   }
-
-let easyListWithConfig listConfig easyListItems =
-  let (opn, sep, cls, settings) =
-    easyListSettingsFromListConfig listConfig in
-  Easy_format.List ((opn, sep, cls, settings), easyListItems)
-
-let makeEasyList
-    ?(newlinesAboveItems=0)
-    ?(newlinesAboveComments=0)
-    ?(newlinesAboveDocComments=0)
-    ?(renderFinalSep=false)
-    ?(break=Layout.Never)
-    ?(wrap=("", ""))
-    ?(inline=(true, false))
-    ?(sep="")
-    ?(indent=list_settings.indent_body)
-    ?(sepLeft=true)
-    ?(preSpace=false)
-    ?(postSpace=false)
-    ?(pad=(false,false)) easyListItems =
-  let listConfig =
-    makeListConfig
-      ~newlinesAboveItems
-      ~newlinesAboveComments
-      ~newlinesAboveDocComments
-      ~renderFinalSep
-      ~break
-      ~wrap
-      ~inline
-      ~sep
-      ~indent
-      ~sepLeft
-      ~preSpace
-      ~postSpace
-      ~pad
-      ()
-  in
-  let (opn, sep, cls, listSettings) = easyListSettingsFromListConfig listConfig in
-  Easy_format.List ((opn, sep, cls, listSettings), easyListItems)
 
 let makeList
     (* Allows a fallback in the event that comments were interleaved with the
@@ -1309,13 +1153,9 @@ let label ?(break=`Auto) ?(space=false) ?(indent=settings.indentAfterLabels) (la
     term
   )
 
-let labelSpace l r = label ~space:true l r
-
 let atom ?loc str =
   let layout = Layout.Easy (Easy_format.Atom(str, labelStringStyle)) in
   source_map ?loc layout
-
-let easyAtom str = Easy_format.Atom(str, labelStringStyle)
 
 (** Take x,y,z and n and generate [x, y, z, ...n] *)
 let makeES6List ?wrap:(wrap=("", "")) lst last =
@@ -1326,10 +1166,6 @@ let makeES6List ?wrap:(wrap=("", "")) lst last =
 let makeNonIndentedBreakingList lst =
     (* No align closing: So that semis stick to the ends of every break *)
   makeList ~break:Always_rec ~indent:0 ~inline:(true, true) lst
-
-let break =
-    (* No align closing: So that semis stick to the ends of every break *)
-  makeListConfig ~break:Always_rec ~indent:0 ~inline:(true, true) ()
 
 let makeBreakableList lst = makeList ~break:IfNeed ~inline:(true, true) lst
 
@@ -1346,12 +1182,6 @@ let makeCommaBreakableListSurround opn cls lst =
 
 let formatPrecedence ?loc formattedTerm =
   source_map ?loc (makeList ~wrap:("(", ")") ~break:IfNeed [formattedTerm])
-
-(* What to do when a comment wasn't interleaved in a list - default is to attach and break. *)
-let fallbackCommentListConfig = break
-
-let eolCommentListConfig =
-  makeListConfig ~break:Layout.Never ~postSpace:true ~inline:(true, true) ()
 
 let isListy = function
   | Easy_format.List _ -> true
@@ -1372,44 +1202,6 @@ let wrap fn = fun term ->
   ignore (flush_str_formatter ());
   let f = str_formatter in
   (fn f term; atom (flush_str_formatter ()))
-
-
-(** Either an ItemComment  (not eol) designates if it's a doc comment (which
-    have extra leading stars).  Or an Item which might include its eol
-    comments. *)
-type commentOrItem =
-  | ItemComment of Easy_format.t * bool
-  (* The item, and a list of "end of line" comments to render *)
-  | Item of (Easy_format.t * Easy_format.t list)
-
-
-(**
- * Invokes the supplied partitioning function with normalized location
- * positions. AST nodes and comments' locations have endpoints that are not one
- * beyond the actual end. [extractComments] normalizes this and provides
- * the exact first/last character position. The function should return true iff
- * an item with that exact location is to be included in the left partition.
- *
- * The callback is invoked with both normalized physical location, as well as
- * the "attachment" location. The attachment location makes note of where
- * the comment was relative to indentation or the beginning of a line.
- *
- * Attachment location: What portion of text is the comment annotating
- * (including the comment text itself)?
- * Physical location: Where in the file was the comment? Usually a subset of
- * attachment location.
- *)
-let rec extractComments comments tester =
-  let open Lexing in
-  (* There might be an issue here - we shouldn't have to split "up to and including".
-     Up to should be sufficient. Comments' end position might be off by one (too large) *)
-  comments |> List.partition (fun (str, attLoc, physLoc) ->
-    let oneGreaterThanAttachmentLocEnd = attLoc.loc_end.pos_cnum in
-    let attachmentLocLastChar = oneGreaterThanAttachmentLocEnd - 1 in
-    let oneGreaterThanPhysLocEnd = physLoc.loc_end.pos_cnum in
-    let physLastChar = oneGreaterThanPhysLocEnd - 1 in
-    tester attLoc.loc_start.pos_cnum attachmentLocLastChar physLoc.loc_start.pos_cnum physLastChar
-  )
 
 (* Don't use `trim` since it kills line return too? *)
 let rec beginsWithStar_ line length idx =
@@ -1847,11 +1639,6 @@ let rec attachCommentToNodeLeft comment layout =
   | layout ->
      Layout.Label (inlineLabel, formatComment comment, layout)
 
-let isNone opt =
-  match opt with
-  | None -> true | _ -> false
-
-
 (** [tryPerfectlyAttachComment layout comment] postorderly walk the [layout] and tries
  *  to perfectly attach a comment with a layout node.
  *
@@ -1981,8 +1768,6 @@ let makeLetSequenceSingleLine letItems =
     ~sep:";"
     letItems
 
-let f = Format.std_formatter
-
 (* postSpace is so that when comments are interleaved, we still use spacing rules. *)
 let makeUnguardedLetSequence letItems =
   makeList
@@ -2025,27 +1810,6 @@ let formatJustTheTypeConstraint typ =
 
 let formatTypeConstraint one two =
   label ~space:true (makeList ~postSpace:false [one; atom ":"]) two
-
-let formatLabeledArgument =
-  (fun lbl lblSuffix term ->
-    if lbl = "" then
-      (*
-       * This logic helps avoid a line break to be added after "::"
-       * ```
-       * let f
-       *   ::
-       *     superLonglonglongnameArg => ...
-       * ```
-       * Instead, it prints it to
-       * ```
-       * let f
-       *   :: superLonglonglongnameArg => ...
-       * ```
-       *
-       *)
-      makeList [atom lbl; atom ("::" ^ lblSuffix); term]
-    else
-      label ~space:false (makeList [atom lbl; atom ("::" ^ lblSuffix)]) term)
 
 let formatCoerce expr optType coerced =
   match optType with
@@ -2191,17 +1955,6 @@ let is_punned_labelled_pattern p lbl = match p.ppat_desc with
   | Ppat_constraint ({ ppat_desc = Ppat_var { txt; _ }; _ }, _)
     -> txt = lbl
   | _ -> false
-
-let format_labeled_argument is_punned term = function
-  | Nolabel -> term
-  | Labelled lbl ->
-    if is_punned lbl
-    then makeList [atom namedArgSym; term]
-    else label (atom (namedArgSym ^ lbl)) ~space:true term
-  | Optional lbl ->
-    if is_punned lbl
-    then makeList [atom namedArgSym; label term (atom "?")]
-    else label (atom (namedArgSym ^ lbl ^ "?")) ~space:true term
 
 let isLongIdentWithDot = function
   | Ldot _ -> true
@@ -6700,12 +6453,6 @@ let toplevel_phrase f x =
 let case_list f x =
   List.iter (format_layout f) (easy#case_list x)
 
-let top_phrase f x =
-  pp_print_newline f () ;
-  toplevel_phrase f x;
-  pp f ";;" ;
-  pp_print_newline f ();;
-
 (* Convert a Longident to a list of strings.
    E.g. M.Constructor will be ["Constructor"; "M.Constructor"]
    Also support ".Constructor" to specify access without a path.
@@ -6832,5 +6579,3 @@ object
   method expression = Formatter.expression
   method case_list = Formatter.case_list
 end
-
-let defaultSettings = defaultSettings

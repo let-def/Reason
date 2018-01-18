@@ -75,11 +75,10 @@ let refmt
     in
     Reason_config.configure ~r:is_recoverable;
     Location.input_name := input_file;
-    let _ = Reason_pprint_ast.configure
-        ~width: print_width
-        ~assumeExplicitArity: explicit_arity
-        ~constructorLists
-    in
+    Reason_pprint_ast.configure
+      ~width: print_width
+      ~assumeExplicitArity: explicit_arity
+      ~constructorLists;
     let (ast, parsedAsML) =
       Printer.parse ~use_stdin parse_ast input_file
     in
