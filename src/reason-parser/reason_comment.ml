@@ -38,10 +38,7 @@ let dump_list ppf list =
   List.iter (Format.fprintf ppf "%a\n" dump) list
 
 let align_lines text =
-  match
-    Syntax_util.split_by ~keep_empty:true (fun x -> x = '\n')
-      text
-  with
+  match Syntax_util.split_lines text with
   | [] -> ""
   | [text] -> text
   | first :: (second :: _ as rest) ->
