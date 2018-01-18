@@ -92,6 +92,23 @@ type escape =
 
 type styles = (style_name * style) list
 
+let pp_print_multiline ppf str =
+  let rec loop i =
+    match String.index_from str i '\n' with
+    | exception Not_found ->
+      pp_print_string ppf (String.sub str i (String.length str - i))
+    | j ->
+      pp_print_string ppf (String.sub str i (j - i));
+      pp_force_newline ppf ();
+      loop (j + 1)
+  in
+  if String.contains str '\n' then (
+    pp_open_vbox ppf 0;
+    loop 0;
+    pp_close_box ppf ()
+  ) else
+    pp_print_string ppf str
+
 (*
    Transform a tree starting from the leaves, propagating and merging
    accumulators until reaching the root.
@@ -319,10 +336,10 @@ struct
 
   let tag_string fmt o s =
     match o with
-        None -> pp_print_string fmt s
+        None -> pp_print_multiline fmt s
       | Some tag ->
           pp_open_tag fmt tag;
-          pp_print_string fmt s;
+          pp_print_multiline fmt s;
           pp_close_tag fmt ()
 
   let rec fprint_t fmt = function

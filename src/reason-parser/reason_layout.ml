@@ -348,35 +348,28 @@ let lineZeroMeaningfulContent line = lineZeroMeaningfulContent_ line (String.len
 
 let string_after s n = String.sub s n (String.length s - n)
 
-let formatComment_ txt =
-  let commLines =
-    Syntax_util.split_by ~keep_empty:true (fun x -> x = '\n') (Comment.wrap txt)
-  in
-  match commLines with
-  | [] -> atom ""
-  | [hd] ->
-    atom hd
-  | zero::one::tl ->
-    let attemptRemoveCount = (smallestLeadingSpaces (one::tl)) in
-    let leftPad =
-      if beginsWithStar one then 1
-      else match lineZeroMeaningfulContent zero with
-        | None -> 1
-        | Some num -> num + 1
-    in
-    let padNonOpeningLine s =
-      let numLeadingSpaceForThisLine = numLeadingSpace s in
-      if String.length s == 0 then ""
-      else (String.make leftPad ' ') ^
-           (string_after s (min attemptRemoveCount numLeadingSpaceForThisLine)) in
-    let lines = zero :: List.map padNonOpeningLine (one::tl) in
-    makeList ~inline:(true, true) ~indent:0 ~break:Always_rec (List.map atom lines)
-
 let formatComment comment =
-  let layout = formatComment_ comment in
-  let loc = comment.location in
-  if loc = Location.none then
-    layout
-  else
-    SourceMap (loc, layout)
-
+  let commLines =
+    Syntax_util.split_by ~keep_empty:true (fun x -> x = '\n')
+      (Comment.wrap comment)
+  in
+  let text = match commLines with
+    | [] -> ""
+    | [hd] -> hd
+    | zero::one::tl ->
+      let attemptRemoveCount = (smallestLeadingSpaces (one::tl)) in
+      let leftPad =
+        if beginsWithStar one then 1
+        else match lineZeroMeaningfulContent zero with
+          | None -> 1
+          | Some num -> num + 1
+      in
+      let padNonOpeningLine s =
+        let numLeadingSpaceForThisLine = numLeadingSpace s in
+        if String.length s == 0 then ""
+        else (String.make leftPad ' ') ^
+             (string_after s (min attemptRemoveCount numLeadingSpaceForThisLine))
+      in
+      String.concat "\n" (zero :: List.map padNonOpeningLine (one::tl))
+  in
+  atom ~loc:comment.location text
