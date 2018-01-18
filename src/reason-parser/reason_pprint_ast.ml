@@ -48,14 +48,11 @@
 
 open Ast_404
 open Asttypes
-open Format
 open Location
-open Lexing
 open Longident
 open Parsetree
 open Easy_format
 open Syntax_util
-open Ast_mapper
 
 module Comment = Reason_comment
 module Layout = Reason_layout
@@ -722,7 +719,7 @@ let is_single_unit_construct exprList =
     | _ -> false)
   | _ -> false
 
-let pp = fprintf
+let pp = Format.fprintf
 
 type funcReturnStyle =
   | ReturnValOnSameLine
@@ -1187,21 +1184,10 @@ let isListy = function
   | Easy_format.List _ -> true
   | _ -> false
 
-let easyFormatToFormatter f x =
-  let buf = Buffer.create 1000 in
-  let fauxmatter = Format.formatter_of_buffer buf in
-  let _ = Format.pp_set_margin fauxmatter settings.width in
-  if debugWithHtml.contents then
-    Easy_format.Pretty.define_styles fauxmatter html_escape html_style;
-  let _ = Easy_format.Pretty.to_formatter fauxmatter x in
-  let trimmed = Syntax_util.strip_trailing_whitespace (Buffer.contents buf) in
-  Format.fprintf f "%s\n" trimmed;
-  pp_print_flush f ()
-
-let wrap fn = fun term ->
-  ignore (flush_str_formatter ());
-  let f = str_formatter in
-  (fn f term; atom (flush_str_formatter ()))
+let wrap fn term =
+  ignore (Format.flush_str_formatter ());
+  fn Format.str_formatter term;
+  atom (Format.flush_str_formatter ())
 
 (* Don't use `trim` since it kills line return too? *)
 let rec beginsWithStar_ line length idx =
@@ -2159,7 +2145,7 @@ let formatComputedInfixChain infixChainList =
   print [] [] "" infixChainList
 
 
-class printer  ()= object(self:'self)
+let printer = object(self:'self)
   val pipe = false
   val semi = false
   (* The test and first branch of ternaries must be guarded *)
@@ -6435,10 +6421,18 @@ class printer  ()= object(self:'self)
     end
 end;;
 
-
-let easy = new printer ()
-
 let format_layout ppf ?comments layout =
+  let easyFormatToFormatter f x =
+    let buf = Buffer.create 1000 in
+    let fauxmatter = Format.formatter_of_buffer buf in
+    Format.pp_set_margin fauxmatter settings.width;
+    if debugWithHtml.contents then
+      Easy_format.Pretty.define_styles fauxmatter html_escape html_style;
+    Easy_format.Pretty.to_formatter fauxmatter x;
+    let trimmed = Syntax_util.strip_trailing_whitespace (Buffer.contents buf) in
+    Format.fprintf f "%s\n" trimmed;
+    Format.pp_print_flush f ()
+  in
   let layout = match comments with
     | None -> layout
     | Some comments -> renderComments comments layout
@@ -6447,126 +6441,106 @@ let format_layout ppf ?comments layout =
 
 let toplevel_phrase f x =
   match x with
-  | Ptop_def (s) -> format_layout f (easy#structure s)
+  | Ptop_def (s) -> format_layout f (printer#structure s)
   | Ptop_dir (s, da) -> print_string "(* top directives not supported *)"
 
-let case_list f x =
-  List.iter (format_layout f) (easy#case_list x)
-
-(* Convert a Longident to a list of strings.
-   E.g. M.Constructor will be ["Constructor"; "M.Constructor"]
-   Also support ".Constructor" to specify access without a path.
+(** Process explicit arity constructuors
+ * explicit_arity_constructors is a set of constructors that are known to have
+ * multiple arguments
  *)
-let longident_for_arity lid =
-  let rec toplevel = function
-    | Lident s ->
-        [s]
-    | Ldot (lid, s) ->
+
+let built_in_explicit_arity_constructors =
+  ["Some"; "Assert_failure"; "Match_failure"]
+
+let add_explicit_arity_mapper =
+  let table = Hashtbl.create 7 in
+  let add_constructor name = Hashtbl.replace table name () in
+  List.iter add_constructor built_in_explicit_arity_constructors;
+  List.iter add_constructor (!configuredSettings).constructorLists;
+  let is_explicit name = Hashtbl.mem table name in
+  let add_explicit_arity loc attributes =
+    ({txt="explicit_arity"; loc}, PStr []) ::
+    normalized_attributes "explicit_arity" attributes
+  in
+  let no_explicit_arity attributes =
+    not (attribute_exists "explicit_arity" attributes)
+  in
+  (* Convert a Longident to a list of strings.
+     E.g. M.Constructor will be ["Constructor"; "M.Constructor"]
+     Also support ".Constructor" to specify access without a path.
+  *)
+  let longident_for_arity lid =
+    let rec toplevel = function
+      | Lident s -> [s]
+      | Ldot (lid, s) ->
         let append_s x = x ^ "." ^ s in
         s :: (List.map append_s (toplevel lid))
-    | Lapply (y,s) ->
-        toplevel s in
-   match lid with
-    | Lident s ->
-        ("." ^ s) :: toplevel lid
-    | _ ->
-        toplevel lid
-
-(* add expilcit_arity to a list of attributes
- *)
-let add_explicit_arity loc attributes =
-  ({txt="explicit_arity"; loc}, PStr []) ::
-  normalized_attributes "explicit_arity" attributes
-
-(* explicit_arity_exists check if expilcit_arity exists
- *)
-let explicit_arity_not_exists attributes =
-  not (attribute_exists "explicit_arity" attributes)
-
-(* wrap_expr_with_tuple wraps an expression
- * with tuple as a sole argument.
- *)
-let wrap_expr_with_tuple exp =
-  {exp with pexp_desc = Pexp_tuple [exp]}
-
-(* wrap_pat_with_tuple wraps an pattern
- * with tuple as a sole argument.
- *)
-let wrap_pat_with_tuple pat =
-  {pat with ppat_desc = Ppat_tuple [pat]}
-
-
-
-(* explicit_arity_constructors is a set of constructors that are known to have
- * multiple arguments
- *
- *)
-
-module StringSet = Set.Make(String);;
-
-let built_in_explicit_arity_constructors = ["Some"; "Assert_failure"; "Match_failure"]
-
-let explicit_arity_constructors = StringSet.of_list(built_in_explicit_arity_constructors @ (!configuredSettings).constructorLists)
-
-let add_explicit_arity_mapper super =
-{ super with
-  expr = begin fun mapper expr ->
-    let expr =
-      match expr with
-        | {pexp_desc=Pexp_construct(lid, Some sp);
-           pexp_loc;
-           pexp_attributes} when
-             List.exists
-                (fun c -> StringSet.mem c explicit_arity_constructors)
-                (longident_for_arity lid.txt) &&
-             explicit_arity_not_exists pexp_attributes ->
-           {pexp_desc=Pexp_construct(lid, Some (wrap_expr_with_tuple sp));
-            pexp_loc;
-            pexp_attributes=add_explicit_arity pexp_loc pexp_attributes}
-        | x -> x
+      | Lapply (y,s) -> toplevel s
     in
-    super.expr mapper expr
-  end;
-  pat = begin fun mapper pat ->
-    let pat =
-      match pat with
-        | {ppat_desc=Ppat_construct(lid, Some sp);
-           ppat_loc;
-           ppat_attributes} when
-              List.exists
-                  (fun c -> StringSet.mem c explicit_arity_constructors)
-                  (longident_for_arity lid.txt) &&
-              explicit_arity_not_exists ppat_attributes ->
-           {ppat_desc=Ppat_construct(lid, Some (wrap_pat_with_tuple sp));
-            ppat_loc;
-            ppat_attributes=add_explicit_arity ppat_loc ppat_attributes}
-        | x -> x
+    match lid with
+    | Lident s -> ("." ^ s) :: toplevel lid
+    | _ -> toplevel lid
+  in
+  let open Ast_mapper in
+  fun super ->
+    let super_expr = super.expr in
+    let expr mapper = function
+      | { pexp_desc = Pexp_construct (lid, Some sp);
+          pexp_loc; pexp_attributes }
+        when List.exists is_explicit (longident_for_arity lid.txt)
+          && no_explicit_arity pexp_attributes ->
+        let sp = {sp with pexp_desc = Pexp_tuple [sp]} in
+        let x = {
+          pexp_desc = Pexp_construct (lid, Some sp);
+          pexp_attributes = add_explicit_arity pexp_loc pexp_attributes;
+          pexp_loc
+        } in
+        super_expr mapper x
+      | x -> super_expr mapper x
     in
-    super.pat mapper pat
-  end;
-}
+    let super_pat = super.pat in
+    let pat mapper = function
+      | { ppat_desc = Ppat_construct (lid, Some sp);
+          ppat_loc; ppat_attributes }
+        when
+          List.exists is_explicit (longident_for_arity lid.txt)
+          && no_explicit_arity ppat_attributes ->
+        let sp = {sp with ppat_desc = Ppat_tuple [sp]} in
+        { ppat_desc = Ppat_construct (lid, Some sp);
+          ppat_attributes = add_explicit_arity ppat_loc ppat_attributes;
+          ppat_loc }
+      | x -> super_pat mapper x
+    in
+    { super with expr; pat }
 
 let preprocessing_mapper =
   ml_to_reason_swap_operator_mapper
     (escape_stars_slashes_mapper
-      (add_explicit_arity_mapper default_mapper))
+      (add_explicit_arity_mapper Ast_mapper.default_mapper))
 
 let core_type f x =
-  format_layout f
-    (easy#core_type (apply_mapper_to_type x preprocessing_mapper))
+  let x = apply_mapper_to_type x preprocessing_mapper in
+  format_layout f (printer#core_type x)
+
 let pattern f x =
-  format_layout f
-    (easy#pattern (apply_mapper_to_pattern x preprocessing_mapper))
+  let x = apply_mapper_to_pattern x preprocessing_mapper in
+  format_layout f (printer#pattern x)
+
 let signature (comments : Comment.t list) f x =
-  format_layout f ~comments
-    (easy#signature (apply_mapper_to_signature x preprocessing_mapper))
+  let x = apply_mapper_to_signature x preprocessing_mapper in
+  format_layout f ~comments (printer#signature x)
+
 let structure (comments : Comment.t list) f x =
-  format_layout f ~comments
-    (easy#structure (apply_mapper_to_structure x preprocessing_mapper))
+  let x = apply_mapper_to_structure x preprocessing_mapper in
+  format_layout f ~comments (printer#structure x)
+
 let expression f x =
-  format_layout f
-    (easy#unparseExpr (apply_mapper_to_expr x preprocessing_mapper))
-let case_list = case_list
+  let x = apply_mapper_to_expr x preprocessing_mapper in
+  format_layout f (printer#unparseExpr x)
+
+let case_list f x =
+  List.iter (format_layout f) (printer#case_list x)
+
 end
 in
 object
