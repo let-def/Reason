@@ -355,7 +355,7 @@ let formatComment_ txt =
   match commLines with
   | [] -> atom ""
   | [hd] ->
-    makeList ~inline:(true, true) ~postSpace:true ~preSpace:true ~indent:0 ~break:IfNeed [atom hd]
+    atom hd
   | zero::one::tl ->
     let attemptRemoveCount = (smallestLeadingSpaces (one::tl)) in
     let leftPad =
