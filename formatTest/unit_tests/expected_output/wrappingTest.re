@@ -1,5 +1,5 @@
-// Copyright (c) 2015-present, Facebook, Inc. All rights reserved. 
-// Run the formatting pretty printer with width 50 
+// Copyright (c) 2015-present, Facebook, Inc. All rights reserved.
+// Run the formatting pretty printer with width 50
 /*
  * Testing infix wrapping
  */
@@ -13,11 +13,11 @@ let something =
   + reallyLongIdent;
 
 let something =
-  // Hopefully 
+  // Hopefully
   reallyLongIdent
-  // It will indent like this 
+  // It will indent like this
   + andYetAnotherReallyLongIdent
-  // And no further 
+  // And no further
   + reallyLongIdent;
 
 /* Comments can be written like this.
@@ -105,207 +105,207 @@ let b = 20;
 
 //A
 let named =
-    // a::a 
+    // a::a
     (
       ~a,
-      // b::b 
+      // b::b
       ~b
     ) =>
-  // a + b 
+  // a + b
   a + b;
 
 //B
 let namedAlias =
-    // a::aa 
+    // a::aa
     (
       ~a as aa,
-      // b::bb 
+      // b::bb
       ~b as bb
     ) =>
-  // aa + bb 
+  // aa + bb
   aa + bb;
 
 //C
 let namedAnnot =
-    // ~a a: option(int) 
+    // ~a a: option(int)
     (
       ~a: option(int),
-      // ~b b: option(int) 
+      // ~b b: option(int)
       ~b: option(int)
     ) =>
-  // 20 
+  // 20
   20;
 
 //D
 let namedAliasAnnot =
-    // a::(aa: option int) 
+    // a::(aa: option int)
     (
       ~a as aa: option(int),
-      // b::(bb: option int) 
+      // b::(bb: option int)
       ~b as bb: option(int)
     ) =>
-  // 20 
+  // 20
   20;
 
 //E
 let optional =
-    // a::a=? 
+    // a::a=?
     (
       ~a=?,
-      // b::b=? 
+      // b::b=?
       ~b=?,
-      // () 
+      // ()
       ()
     ) =>
-  // 10 
+  // 10
   10;
 
 //F
 let optionalAlias =
-    // a::aa 
+    // a::aa
     (
       ~a as aa=?,
-      // ?b:bb 
+      // ?b:bb
       ~b as bb=?,
-      // () 
+      // ()
       ()
     ) =>
-  // 10 
+  // 10
   10;
 
 //G
 let optionalAnnot =
-    // a::(a: option int)=? 
+    // a::(a: option int)=?
     (
       ~a: option(int)=?,
-      // ?b:(b: option int) 
+      // ?b:(b: option int)
       ~b: option(int)=?,
-      // () 
+      // ()
       ()
     ) =>
-  // 10 
+  // 10
   10;
 
 //H
 let optionalAliasAnnot =
-    // a::(aa: option int)=? 
+    // a::(aa: option int)=?
     (
       ~a as aa: option(int)=?,
-      // b::(bb: option int)=? 
+      // b::(bb: option int)=?
       ~b as bb: option(int)=?,
-      // () = 
+      // () =
       ()
     ) =>
-  // 10 
+  // 10
   10;
 
 //I: This one is really annoying? Where's the visual label?
 let defOptional =
-    // a::a=10 
+    // a::a=10
     (
       ~a=10,
-      // b::b=10 
+      // b::b=10
       ~b=10,
-      // () = 
+      // () =
       ()
     ) =>
-  // 10 
+  // 10
   10;
 
 //J
 let defOptionalAlias =
-    // a::aa=10 
+    // a::aa=10
     (
       ~a as aa=10,
-      // b::bb=10 
+      // b::bb=10
       ~b as bb=10,
-      // () = 
+      // () =
       ()
     ) =>
-  // 10; 
+  // 10;
   10;
 
 //K
 let defOptionalAnnot =
-    // a::(a:int)=10 
+    // a::(a:int)=10
     (
       ~a: int=10,
-      // b::(b:int)=10 
+      // b::(b:int)=10
       ~b: int=10,
-      // () = 
+      // () =
       ()
     ) =>
-  // 10; 
+  // 10;
   10;
 
 //L
 let defOptionalAliasAnnot =
-    // a::(aa:int)=10 
+    // a::(aa:int)=10
     (
       ~a as aa: int=10,
-      // b::(bb:int)=10 
+      // b::(bb:int)=10
       ~b as bb: int=10,
-      // () = 
+      // () =
       ()
     ) =>
-  // 10; 
+  // 10;
   10;
 
-// Invoking them 
+// Invoking them
 named
-  // a::a 
+  // a::a
   (
     ~a,
-    // b::b; 
+    // b::b;
     ~b
   );
 
 named
-  // a::a 
+  // a::a
   (
     ~a,
-    // b::b; 
+    // b::b;
     ~b
   );
 
 optional
-  // a::a 
+  // a::a
   (
     ~a,
-    // b::b; 
+    // b::b;
     ~b
   );
 
 optional
-  // a::a 
+  // a::a
   (
     ~a,
-    // b::b; 
+    // b::b;
     ~b
   );
 
 let explictlyPassed =
-  // optional 
+  // optional
   optional
-    // a::? 
-    // None 
+    // a::?
+    // None
     (
       ~a=?None,
-      // b::? 
-      // None; 
+      // b::?
+      // None;
       ~b=?None
     );
 
 let a = None;
 
 let explictlyPassed =
-  // optional 
+  // optional
   optional
-    // a::? 
+    // a::?
     (
       ~a?,
-      // b::? 
-      // None; 
+      // b::?
+      // None;
       ~b=?None
     );
 
@@ -350,7 +350,7 @@ let myList = [
 let myList = [
   1,
   2,
-  3 //same w space after three    
+  3 //same w space after three   
 ];
 
 let myList = [
@@ -362,60 +362,60 @@ let myList = [
 let myList = [
   1,
   2,
-  3 //same w both                 
+  3 //same w both                
 ];
 
-// End of line comments 
+// End of line comments
 let myList = [
   1,
   2,
-  3 //no space after three    
+  3 //no space after three   
 ];
 
 let myList = [
   1,
   2,
-  3 //same w space after three    
+  3 //same w space after three   
 ];
 
 let myList = [
   1,
-  2, //no space after two comma    
+  2, //no space after two comma   
   3
 ];
 
 let myList = [
   1,
-  2, //same w space after two comma    
+  2, //same w space after two comma   
   3
 ];
 
-// End of line comments 
+// End of line comments
 let myList = [
   1,
-  2, //no space after two comma    
+  2, //no space after two comma   
   3
 ];
 
 let myList = [
   1,
-  2, //same w space after two comma    
+  2, //same w space after two comma   
   3
 ];
 
 let myRec = {
   x: 1,
-  y: 2, //no space after two    
+  y: 2, //no space after two   
   z: 3
 };
 
 let myRec = {
   x: 1,
-  y: 2, //same w space after two    
+  y: 2, //same w space after two   
   z: 3
 };
 
-// Ensure end of line comments force breaks 
+// Ensure end of line comments force breaks
 let myList = [1, 2, 3 /* */];
 
 let myList = [1, 2, /**/ 3];
@@ -423,7 +423,7 @@ let myList = [1, 2, /**/ 3];
 let myList = [
   1,
   2,
-  3, //CommentAfterConsBeforeAppendedTo 
+  3, //CommentAfterConsBeforeAppendedTo
   ...myList
 ];
 
@@ -452,7 +452,7 @@ type hasABunch = {
   fieldtwo: list(int),
   fieldThree: list(string),
   fieldFour: nameAge
-  // Comment at bottom of record type def 
+  // Comment at bottom of record type def
 };
 
 type functionsInARecord = {
@@ -466,10 +466,10 @@ let myFunctionsInARecord = {
 };
 
 let myFunctionsInARecordThatMustWrap = {
-  // Desired wrapping 
+  // Desired wrapping
   adder: reallyLongArgument => reallyLongArgument,
   minuser: anotherReallyLongArgument => anotherReallyLongArgument
-  // Comment at bottom of record 
+  // Comment at bottom of record
 };
 
 type twoArgFunctionsInARecord = {
@@ -478,7 +478,7 @@ type twoArgFunctionsInARecord = {
 };
 
 let myFunctionsInARecordThatMustWrap = {
-  // Desired wrapping 
+  // Desired wrapping
   adder:
     (
       reallyLongArgument,
@@ -499,12 +499,12 @@ type threeArgFunctionsInARecord = {
 };
 
 let myFunctionsInARecordThatMustWrap = {
-  // Desired wrapping 
+  // Desired wrapping
   adder:
-    // Even if you have a comment before fun 
+    // Even if you have a comment before fun
     (
       reallyLongArgument,
-      // Or before the first arg 
+      // Or before the first arg
       anotherReallyLongArgument,
       yetAnotherReallyLongArgument
     ) => reallyLongArgument,
@@ -534,7 +534,7 @@ let secondArgShouldWrap =
     (pointLess, (a, b, c, d, e, f, g, h)) =>
   pointLess + a + b + c + d + e;
 
-// Now check that one and two args both indent the same when applying 
+// Now check that one and two args both indent the same when applying
 let reallyReallyLongVarName = "hello";
 
 let result =
@@ -661,7 +661,7 @@ type sixteenTuple = (
   int
 );
 
-// Nothing annotated 
+// Nothing annotated
 let echoTuple =
     (
       (
@@ -701,7 +701,7 @@ let echoTuple =
   p
 );
 
-// Nothing annotated fun 
+// Nothing annotated fun
 let echoTuple =
     (
       (
@@ -745,7 +745,7 @@ let echoTheEchoer =
     (x: sixteenTuple => sixteenTuple)
     : (sixteenTuple => sixteenTuple) => x;
 
-// Nothing annotated fun, passed to func 
+// Nothing annotated fun, passed to func
 echoTheEchoer(
   (
     (
@@ -787,7 +787,7 @@ echoTheEchoer(
   )
 );
 
-// Argument annotated 
+// Argument annotated
 let echoTuple =
     (
       (
@@ -827,7 +827,7 @@ let echoTuple =
   p
 );
 
-// Argument annotated fun 
+// Argument annotated fun
 let echoTuple =
     (
       (
@@ -867,7 +867,7 @@ let echoTuple =
   p
 );
 
-// Argument annotated, return type annotated 
+// Argument annotated, return type annotated
 let echoTuple =
     (
       (
@@ -908,7 +908,7 @@ let echoTuple =
   p
 );
 
-// Desired formatting if first line fits within margin 
+// Desired formatting if first line fits within margin
 let makeTuple =
     (
       a,
@@ -946,7 +946,7 @@ let makeTuple =
   p
 );
 
-// Desired formatting if first line fits within margin (70) 
+// Desired formatting if first line fits within margin (70)
 let (
   a,
   b,
@@ -984,7 +984,7 @@ let (
     0
   );
 
-// Annotated version 
+// Annotated version
 let (
   a,
   b,
@@ -1022,7 +1022,7 @@ let (
     0
   );
 
-// Annotated inline 
+// Annotated inline
 let x: (
   int,
   int,
@@ -1097,7 +1097,7 @@ let (
     0
   ));
 
-// Annotated version 
+// Annotated version
 let (
   a,
   b,
@@ -1135,7 +1135,7 @@ let (
     0
   ));
 
-// Annotated inline 
+// Annotated inline
 let x: (
   int,
   int,
@@ -1173,8 +1173,8 @@ let x: (
     0
   ));
 
-// Desired formatting if pattern does not fit, arguments do (margin 70) 
-// Destructured 
+// Desired formatting if pattern does not fit, arguments do (margin 70)
+// Destructured
 let (
   axx,
   bxx,
@@ -1212,8 +1212,8 @@ let (
     0
   );
 
-// Annotated 
-// Destructured 
+// Annotated
+// Destructured
 let (
   axx,
   bxx,
@@ -1251,9 +1251,9 @@ let (
     0
   );
 
-// Annotated 
-// Destructured 
-// Inline 
+// Annotated
+// Destructured
+// Inline
 let (
   axx,
   bxx,
@@ -1308,7 +1308,7 @@ let (
     0
   );
 
-// Not-Destructured 
+// Not-Destructured
 let someResult =
   makeTuple(
     0,
@@ -1329,8 +1329,8 @@ let someResult =
     0
   );
 
-// Annotated 
-// Not-Destructured 
+// Annotated
+// Not-Destructured
 let someResult: sixteenTuple =
   makeTuple(
     0,
@@ -1351,9 +1351,9 @@ let someResult: sixteenTuple =
     0
   );
 
-// Annotated 
-// Not-Destructured 
-// Inline 
+// Annotated
+// Not-Destructured
+// Inline
 let someResult: (
   int,
   int,
@@ -1391,7 +1391,7 @@ let someResult: (
     0
   );
 
-// Destructured 
+// Destructured
 let (
   axx,
   bxx,
@@ -1429,7 +1429,7 @@ let (
     0
   ));
 
-// Annotated 
+// Annotated
 let (
   axx,
   bxx,
@@ -1467,7 +1467,7 @@ let (
     0
   ));
 
-// Annotated Inline 
+// Annotated Inline
 let (
   axx,
   bxx,
@@ -1522,7 +1522,7 @@ let (
     0
   ));
 
-// Not-Destructured 
+// Not-Destructured
 let someResult =
   echoTuple((
     0,
@@ -1543,8 +1543,8 @@ let someResult =
     0
   ));
 
-// Annotated 
-// Not-Destructured 
+// Annotated
+// Not-Destructured
 let someResult: sixteenTuple =
   echoTuple((
     0,
@@ -1565,8 +1565,8 @@ let someResult: sixteenTuple =
     0
   ));
 
-// Annotated Inline 
-// Not-Destructured 
+// Annotated Inline
+// Not-Destructured
 let someResult: (
   int,
   int,
@@ -1604,8 +1604,8 @@ let someResult: (
     0
   ));
 
-// Desired formatting if neither fit on one line (margin 70) 
-// Destructured 
+// Desired formatting if neither fit on one line (margin 70)
+// Destructured
 let (
   axx,
   bxx,
@@ -1643,7 +1643,7 @@ let (
     pxx
   );
 
-// Annoted 
+// Annoted
 let (
   axx,
   bxx,
@@ -1681,7 +1681,7 @@ let (
     pxx
   );
 
-// Annoted inline 
+// Annoted inline
 let (
   axx,
   bxx,
@@ -1736,7 +1736,7 @@ let (
     pxx
   );
 
-// Not-Destructured 
+// Not-Destructured
 let someResult =
   makeTuple(
     axx,
@@ -1757,8 +1757,8 @@ let someResult =
     pxx
   );
 
-// Not-Destructured 
-// Annoted 
+// Not-Destructured
+// Annoted
 let someResult: sixteenTuple =
   makeTuple(
     axx,
@@ -1779,8 +1779,8 @@ let someResult: sixteenTuple =
     pxx
   );
 
-// Not-Destructured 
-// Annoted inline 
+// Not-Destructured
+// Annoted inline
 let someResult: (
   int,
   int,
@@ -1818,8 +1818,8 @@ let someResult: (
     pxx
   );
 
-// Desired formatting if neither fit on one line (margin 70) 
-// Destructured 
+// Desired formatting if neither fit on one line (margin 70)
+// Destructured
 let (
   axx,
   bxx,
@@ -1857,8 +1857,8 @@ let (
     10
   ));
 
-// Annoted 
-// Destructured 
+// Annoted
+// Destructured
 let (
   axx,
   bxx,
@@ -1896,8 +1896,8 @@ let (
     10
   ));
 
-// Annoted Inline 
-// Destructured 
+// Annoted Inline
+// Destructured
 let (
   axx,
   bxx,
@@ -1952,8 +1952,8 @@ let (
     10
   ));
 
-// Desired formatting if neither fit on one line (margin 70) 
-// Not-Destructured 
+// Desired formatting if neither fit on one line (margin 70)
+// Not-Destructured
 let someResult =
   echoTuple((
     1000,
@@ -1974,8 +1974,8 @@ let someResult =
     10
   ));
 
-// Annoted 
-// Not-Destructured 
+// Annoted
+// Not-Destructured
 let someResult: sixteenTuple =
   echoTuple((
     1000,
@@ -1996,8 +1996,8 @@ let someResult: sixteenTuple =
     10
   ));
 
-// Annoted Inline 
-// Not-Destructured 
+// Annoted Inline
+// Not-Destructured
 let someResult: (
   int,
   int,
@@ -2035,7 +2035,7 @@ let someResult: (
     10
   ));
 
-// The rhs of = shouldn't be broken onto its own newline: @see ensureSingleTokenSticksToLabel 
+// The rhs of = shouldn't be broken onto its own newline: @see ensureSingleTokenSticksToLabel
 let someResult: (
   int,
   int,
@@ -2152,7 +2152,7 @@ type inputEchoRecord('a) = {inputIs: 'a};
 let df_locallyAbstractFunc =
     (type a, type b, input: a) => {
   inputIs: input
-}; // With setting ReturnValOnSameLine 
+}; // With setting ReturnValOnSameLine
 
 let df_locallyAbstractFuncNotSugared =
     (type a, type b, input: a) => {
@@ -2266,10 +2266,10 @@ let rec mutuallyRecursiveOne = x =>
   mutuallyRecursiveTwo(x + x)
 and mutuallyRecursiveTwo = y => print_int(y);
 
-// The only downside to this is that now you can't redeclare a binding. 
-// let newMutualRecursionSyntax x => newMutuallyRecursiveTwo (x + x); 
-// let newMutuallyRecursiveTwo y => print_int y; 
-//  
+// The only downside to this is that now you can't redeclare a binding.
+// let newMutualRecursionSyntax x => newMutuallyRecursiveTwo (x + x);
+// let newMutuallyRecursiveTwo y => print_int y;
+// 
 type x = pri int;
 
 type myType('a, 'b, 'c) = pri ('a, 'b, 'c);
@@ -2321,7 +2321,7 @@ let funcOnSomeConstructorHi =
     (SomeConstructorHi(x, y), secondArg) =>
   x + y;
 
-// With two args 
+// With two args
 let funcOnSomeRecord =
     ({firstFieldInRecord, secondField}) =>
   firstFieldInRecord + secondField;
@@ -2347,7 +2347,7 @@ let funcOnSomeRecord =
     ({firstFieldInRecord, secondField}) =>
   firstFieldInRecord + secondField;
 
-// With two args 
+// With two args
 let funcOnSomeConstructorHi =
     (SomeConstructorHi(x, y), secondArg) =>
   x + y;
@@ -2377,46 +2377,46 @@ type recordWithLong = {
  * Commenting first of two mutualy recursive types.
  */
 type recursiveType =
-  // First variant of first mutually recursive 
+  // First variant of first mutually recursive
   | Blah
-  // Second variant of first mutually recursive 
+  // Second variant of first mutually recursive
   | Another(option(anotherRecursiveType))
 /*
  * Commenting second of two mutually recursive types.
  */
 and anotherRecursiveType =
-  // Second variant of second mutually recursive 
+  // Second variant of second mutually recursive
   | Baz
-  // Second variant of second mutually recursive 
+  // Second variant of second mutually recursive
   | Recursive(option(recursiveType));
 
 /**
  * Commented GADT definition.
  */
 type term(_) =
-  // First variant leaf of GADT 
+  // First variant leaf of GADT
   | Int /*first var arg */(int): /* First GADT res */ term(
                                    int
                                  )
-  // Second variant leaf of GADT 
+  // Second variant leaf of GADT
   | Float /*second var arg */(int): /* Second GADT res */ term(
                                       int
                                     )
-  // Third variant leaf of GADT 
+  // Third variant leaf of GADT
   | Bool /*third var arg */(int): /* Third GADT res */ term(
                                     int
                                   );
 
-// Commented colors 
+// Commented colors
 type commentedTypeDef =
   /*
    * Commenting first variant member.
    */
   | First(
       (
-        // First field of tuple in first variant member 
+        // First field of tuple in first variant member
         int,
-        // Second field of tuple in first variant member 
+        // Second field of tuple in first variant member
         int
       )
     )
@@ -2429,7 +2429,7 @@ type commentedTypeDef =
    */
   | Third(
       list
-        // Commenting deep in type def 
+        // Commenting deep in type def
         (list(int))
     );
 
@@ -2440,9 +2440,9 @@ type colors =
 
 let blah = arg =>
   switch (arg) {
-  // Comment before Bar 
+  // Comment before Bar
   | /* Comment between bar/pattern */ Red(_) => 1
-  // Comment Before non-first bar 
+  // Comment Before non-first bar
   | /* Comment betwen bar/pattern */ Black(_) => 0
   | Green(_) => 0
   };
@@ -2455,12 +2455,12 @@ let blah =
 
 let blahCurriedX = x =>
   fun
-  // Comment before first bar 
-  // Comment between first bar and OR pattern 
+  // Comment before first bar
+  // Comment between first bar and OR pattern
   | Red(x)
   | Black(x)
   | Green(x) => 1
-  // Comment before second bar 
+  // Comment before second bar
   | Black(x) => 0
   | Green(x) => 0;
 
@@ -2539,10 +2539,10 @@ let anotherRecord = {
 };
 
 type polymorphicCommentedType
-  // Commenting the first type variable 
+  // Commenting the first type variable
   (
     'a,
-    // Commenting the second type variable 
+    // Commenting the second type variable
     'b
   ) =
   list('a, 'b);
@@ -2551,11 +2551,11 @@ type polymorphicCommentedType
  * Commenting the entire record definition.
  */
 type withThreeFieldsCommented = {
-  // Commenting the first field 
+  // Commenting the first field
   nameCommented: string,
-  // Commenting the second field 
+  // Commenting the second field
   ageCommented: int,
-  // Commenting the third field 
+  // Commenting the third field
   occupationCommented: string
 };
 
@@ -2563,11 +2563,11 @@ type withThreeFieldsCommented = {
  * Commenting the entire record.
  */
 let testRecordCommented = {
-  // Commenting the first field 
+  // Commenting the first field
   nameCommented: "joe",
-  // Commenting the second field 
+  // Commenting the second field
   ageCommented: 20,
-  // Commenting the last field 
+  // Commenting the last field
   occupationCommented: "engineer"
 };
 
@@ -2575,24 +2575,24 @@ let testRecordCommented = {
  * Test comments near the arguments.
  */
 let callMeWithComments =
-    // Comment before first arg "a" 
+    // Comment before first arg "a"
     (
       a: int,
-      // Comment before second arg "b" 
+      // Comment before second arg "b"
       b: int
     )
-    // Comment before return type annotation "int" 
+    // Comment before return type annotation "int"
     : int =>
-  // Comment above return value a + b + c 
+  // Comment above return value a + b + c
   a + b + c;
 
 let result =
-  // Comment before function to invoke 
+  // Comment before function to invoke
   callMeWithComments
-    // Comment before first argument expression 
+    // Comment before first argument expression
     (
       1 + 2 + 3 + 3,
-      // Comment before second argument expression 
+      // Comment before second argument expression
       1 + 2 + 3 + 3
     );
 
@@ -2609,40 +2609,40 @@ module BMod = {
 };
 
 module CurriedSugar =
-       // Commenting before First curried functor arg 
+       // Commenting before First curried functor arg
        /* If these comments aren't formatted correctly
         * see how functor args' locations aren't set
         * correclty due to the fold_left.
         */
        (
          A: ASig,
-         // Commenting before Second curried functor arg 
+         // Commenting before Second curried functor arg
          B: BSig
        ) => {
   let result = A.a + B.b;
-  // Comment at bottom of module expression 
+  // Comment at bottom of module expression
 };
 
 module CurriedSugarFunctorResult =
   // Commenting before functor name
   CurriedSugar
-    // Commenting before functor arg 1 in app 
+    // Commenting before functor arg 1 in app
     (
       AMod,
-      // Commenting before functor arg 2 in app 
+      // Commenting before functor arg 2 in app
       BMod
     );
 
 module CurriedSugarFunctorResultInline =
   // Commenting before functor name
   CurriedSugar
-    // Commenting before functor arg 1 in app 
+    // Commenting before functor arg 1 in app
     (
       {
         let a = 10;
       },
       {
-        // Commenting before functor arg 2 in app 
+        // Commenting before functor arg 2 in app
         let b = 10;
       }
     );
@@ -2720,11 +2720,11 @@ let myPolyFuncCommentBeforeColon /*beforeColon */:
   o => o;
 
 let myPolyFuncCommentAfterColon: 'a .'a => 'a =
-  //afterColon 
+  //afterColon
   o => o;
 
 let myPolyFuncCommentBeforeArrow: 'a .'a => 'a =
-  //beforeArrow 
+  //beforeArrow
   o => o;
 
 let myPolyFuncCommentAfterArrow:
@@ -2735,7 +2735,7 @@ let myPolyFuncCommentAfterArrow:
 
 let myPolyFuncCommentBeforeEqual:
   'a .
-  'a => 'a //beforeEqual 
+  'a => 'a //beforeEqual
  =
   o => o;
 
@@ -2751,7 +2751,7 @@ let myNonPolyFuncCommentAfterColon:
   o => o;
 
 let myNonPolyFuncCommentBeforeArrow:
-  'a => //BeforeArrow 
+  'a => //BeforeArrow
   'a =
   o => o;
 
@@ -2777,7 +2777,7 @@ let lATCurrySugarCommentBeforeArg =
 
 let lATCurrySugarCommentAfterArg =
     (type a, input: a) =>
-  //AfterArg 
+  //AfterArg
   input;
 
 let lATCurrySugarCommentAfterArrow =
@@ -2829,21 +2829,21 @@ let lAtFuncAnnotatedBeforeEqual:
 let lAtFuncAnnotatedAfterEqual: type a. a => a =
   /*AfterEqual*/ (type a, input: a) => input;
 
-// Ternary wrapping comments 
+// Ternary wrapping comments
 let ternaryResult =
-  // Before Test 
+  // Before Test
   something ?
-    // Before ifTrue 
+    // Before ifTrue
     callThisFunction(withThisArg) :
-    // Before ifFalse 
+    // Before ifFalse
     thatResult;
 
 let ternaryResult =
-  // Before Test 
+  // Before Test
   something ?
-    // Before ifTrue 
+    // Before ifTrue
     callThisFunction(withThisArg) :
-    // Before ifFalse 
+    // Before ifFalse
     trailingTest ?
       /* before nested ifTrue */ true :
       /* before nested ifFalse */ false;
@@ -2904,43 +2904,43 @@ let x =
 let onlyDoingThisTopLevelLetToBypassTopLevelSequence = {
   let x = {
     print_int(1);
-    print_int(20); // Missing trailing SEMI 
+    print_int(20); // Missing trailing SEMI
   };
   let x = {
     print_int(1);
     print_int(
       20
-    ); // Ensure missing middle SEMI reported well 
+    ); // Ensure missing middle SEMI reported well
     print_int(20);
   };
   let x = {
     print_int(1);
     print_int(20);
     10;
-  }; // Missing final SEMI 
+  }; // Missing final SEMI
   let x = {
     print_int(1);
     print_int(20);
     10;
   };
-  x + x; // Final item 
+  x + x; // Final item
 };
 
-// With this unification, anywhere eyou see `= fun` you can just ommit it 
-let blah = a => a; // Done 
+// With this unification, anywhere eyou see `= fun` you can just ommit it
+let blah = a => a; // Done
 
-let blah = a => a; // Done (almost) 
+let blah = a => a; // Done (almost)
 
-let blah = (a, b) => a; // Done 
+let blah = (a, b) => a; // Done
 
-let blah = (a, b) => a; // Done (almost) 
+let blah = (a, b) => a; // Done (almost)
 
 let tryingTheSameInLocalScope = {
-  let blah = a => a; // Done 
-  let blah = a => a; // Done (almost) 
-  let blah = (a, b) => a; // Done 
+  let blah = a => a; // Done
+  let blah = a => a; // Done (almost)
+  let blah = (a, b) => a; // Done
   let blah = (a, b) => a;
-  (); // Done (almost) 
+  (); // Done (almost)
 };
 
 reallyLongFunctionNameWithArrayThatBreaks([|

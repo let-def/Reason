@@ -1,4 +1,4 @@
-// === test wrapping for arrows === 
+// === test wrapping for arrows ===
 type foo = option(int => int);
 
 type foo = option((int, int) => int);
@@ -7,7 +7,7 @@ type foo = option((int => int) => int);
 
 type foo = option((int, int) => int);
 
-// tuple 
+// tuple
 type foo = option((int => int, int => int));
 
 type foo = option((int => int, string));
@@ -16,7 +16,7 @@ type foo = option((string, int => int, string));
 
 type foo = option((string, int => int));
 
-// other preceeding/trailing 
+// other preceeding/trailing
 type foo = option(int => int, int => int);
 
 type foo = option(int => int, string);
@@ -25,7 +25,7 @@ type foo = option(string, int => int, string);
 
 type foo = option(string, int => int);
 
-// preceeding/trailing, more args 
+// preceeding/trailing, more args
 type foo =
   option(
     (int, string) => int,
@@ -39,7 +39,7 @@ type foo =
 
 type foo = option(string, (int, string) => int);
 
-// others 
+// others
 type foo =
   option(string, option(int => int), string);
 
@@ -57,7 +57,7 @@ type foo =
     string
   );
 
-// with attributes 
+// with attributes
 type foo =
   option([@foo] [@bar] (int => [@baz] int));
 
@@ -70,7 +70,7 @@ type foo = option([@foo] ((int => int) => int));
 
 type foo = option([@foo] ((int, int) => int));
 
-// tuple 
+// tuple
 type foo =
   option(
     [@foo]
@@ -94,7 +94,7 @@ type foo =
 
 type foo = option((string, [@foo] (int => int)));
 
-// other preceeding/trailing 
+// other preceeding/trailing
 type foo =
   option(
     [@foo] (int => int),
@@ -114,7 +114,7 @@ type foo =
 type foo =
   option([@foo] string, [@bar] (int => int));
 
-// preceeding/trailing, more args 
+// preceeding/trailing, more args
 type foo =
   option(
     [@foo] ((int, string) => int),
@@ -139,4 +139,4 @@ type foo =
     [@foo] string,
     [@bar] ((int, string) => int)
   );
-// === end test wrapping for arrows === 
+// === end test wrapping for arrows ===

@@ -6171,10 +6171,39 @@ let printer = object(self:'self)
     end
 end;;
 
+let cleanup_symbolic list =
+  let open Symbolic_format in
+  let rec traverse result has_newline = function
+    | [] -> result, has_newline
+    | Tag ("optional_break", contents) :: rest when has_newline ->
+      traverse result has_newline rest
+    | Tag (tag, contents) :: rest ->
+      let contents, has_newline = traverse [] has_newline (List.rev contents) in
+      traverse (Tag (tag, contents) :: result) has_newline rest
+    | x :: rest ->
+      let  has_newline = match x with
+        | Newline -> true
+        | Spaces _ -> has_newline
+        | String _ | Tag _ -> false
+      in
+      traverse (x :: result) has_newline rest
+  in
+  let result, _newline = traverse [] false (List.rev list) in
+  result
+
+let symbolic_rewrite map ppf =
+  Symbolic_format.make
+    ~inherit_geometry:ppf
+    ~on_flush:(fun commands ->
+        Symbolic_format.replay_output ~flush:true ppf (map commands)
+      )
+    ()
+
 let format_layout ppf ?comments layout =
   let easyFormatToFormatter f x =
     let buf = Buffer.create 1000 in
     let fauxmatter = Format.formatter_of_buffer buf in
+    let fauxmatter = symbolic_rewrite cleanup_symbolic fauxmatter in
     Format.pp_set_margin fauxmatter settings.width;
     if debugWithHtml.contents then
       Easy_format.Pretty.define_styles fauxmatter html_escape html_style;

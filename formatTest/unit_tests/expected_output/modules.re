@@ -1,4 +1,4 @@
-// Copyright (c) 2015-present, Facebook, Inc. All rights reserved. 
+// Copyright (c) 2015-present, Facebook, Inc. All rights reserved.
 let run = () =>
   TestUtils.printSection("Modules");
 
@@ -97,7 +97,7 @@ let opensAModuleLocally = {
     type i = int;
     let x: i = 10;
   };
-  // Notice how local modules names may be used twice and are shadowed 
+  // Notice how local modules names may be used twice and are shadowed
   module MyLocalModule: MySecondModuleType = {
     type someType = int;
     let x: someType = 10;
@@ -123,14 +123,14 @@ module type HasDestructivelySubstitutedPolyType =
   HasPolyType with type t('a) := list('a);
 
 module type HasDestructivelySubstitutedSubPolyModule = {
-  // Cannot perform destructive substitution on submodules! 
-  // module X: HasPolyType with type t := list (int, int); 
+  // Cannot perform destructive substitution on submodules!
+  // module X: HasPolyType with type t := list (int, int);
   module X: HasDestructivelySubstitutedPolyType;
 };
 
 module type HasSubPolyModule = {
-  // Cannot perform destructive substitution on submodules! 
-  // module X: HasPolyType with type t := list (int, int); 
+  // Cannot perform destructive substitution on submodules!
+  // module X: HasPolyType with type t := list (int, int);
   module X: HasPolyType;
 };
 
@@ -164,13 +164,13 @@ module InliningSig: {let x: int; let y: int;} = {
    * Comment inside of signature.
    */
   let x = 10;
-  // Inline comment inside signature. 
+  // Inline comment inside signature.
   let y = 20;
 };
 
 module MyFunctor = (M: HasTT) => {
   type reexportedTT = M.tt;
-  // Inline comment inside module. 
+  // Inline comment inside module.
   /** Following special comment inside module. */
   let someValue = 1000;
 };
@@ -221,11 +221,11 @@ module CurriedSugar = (A: ASig, B: BSig) => {
    let result = A.a + B.b;
    }: SigResult);
 
-   // Not supported in OCaml OR Reason (Edit: now supported in OCaml for functions) 
+   // Not supported in OCaml OR Reason (Edit: now supported in OCaml for functions)
    let x = fun (a:foo) :bar => baz;
    module x = fun (A:Foo) :Bar => Baz;
 
-   // Supported in both OCaml and Reason 
+   // Supported in both OCaml and Reason
    let x (a:foo) :bar => baz;
    module x (A:Foo) :Bar => Baz;
 
@@ -236,7 +236,7 @@ module CurriedSugarWithReturnType =
   let result = A.a + B.b;
 };
 
-// This is parsed as being equivalent to the above example 
+// This is parsed as being equivalent to the above example
 module CurriedSugarWithAnnotatedReturnVal =
        (A: ASig, B: BSig)
        : SigResult => {
@@ -323,7 +323,7 @@ module ResultFromNonSimpleFunctorArg =
     BMod
   );
 
-// TODO: Functor type signatures should more resemble value signatures 
+// TODO: Functor type signatures should more resemble value signatures
 let curriedFunc: (int, int) => int =
   (a, b) => a + b;
 
@@ -341,14 +341,14 @@ module type FunctorType3 =
 
 /* The actual functors themselves now have curried sugar (which the pretty
  * printer will enforce as well */
-// The following: 
+// The following:
 module CurriedSugarWithAnnotation2:
   (ASig, BSig) => SigResult =
   (A: ASig, B: BSig) => {
     let result = A.a + B.b;
   };
 
-// Becomes: 
+// Becomes:
 module CurriedSugarWithAnnotation:
   (ASig, BSig) => SigResult =
   (A: ASig, B: BSig) => {
@@ -425,7 +425,7 @@ module type HasRecursiveModules = {
   and ASet: Set.S with type elt = A.t;
 };
 
-// From http://stackoverflow.com/questions/1986374/higher-order-type-constructors-and-functors-in-ocaml 
+// From http://stackoverflow.com/questions/1986374/higher-order-type-constructors-and-functors-in-ocaml
 module type Type = {type t;};
 
 module Char = {
@@ -471,7 +471,7 @@ Printf.printf(
   CurriedNoSugarFunctorResultInline.result
 );
 
-// We would have: 
+// We would have:
 /* module CurriedSugarWithAnnotation: ASig => BSig => SigResult =
    fun (A:ASig) (B:BSig) => {let result = A.a + B.b;; */
 /*
@@ -523,7 +523,7 @@ module SecondClass2 = (
 
 let p = SecondClass.x;
 
-// Opening Modules 
+// Opening Modules
 module M = {
   module Inner = {};
 };

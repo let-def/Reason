@@ -1,4 +1,4 @@
-// Copyright (c) 2015-present, Facebook, Inc. All rights reserved. 
+// Copyright (c) 2015-present, Facebook, Inc. All rights reserved.
 let logTSuccess = self =>
   if (self > other) {
     print_string("Did T");
@@ -27,7 +27,7 @@ if (if (x) {true} else {false}) {
   false;
 };
 
-// Parens are required around if if it's an argument - this is the same as before. 
+// Parens are required around if if it's an argument - this is the same as before.
 if (callSomeFunction(
       if (true) {true} else {false}
     )) {
@@ -36,8 +36,8 @@ if (callSomeFunction(
   false;
 };
 
-// Notice that to do something strange, your code must *look* strange. 
-// That's generally a good thing 
+// Notice that to do something strange, your code must *look* strange.
+// That's generally a good thing
 if (callSomeFunction) {
   if (true) {true};
 } else {
@@ -89,19 +89,19 @@ let annotatedBranch =
   true
   && (something ? (true: bool) : false: bool);
 
-// The following should be... 
+// The following should be...
 let whatShouldThisBeParsedAs =
   something ?
     callThisFunction(withThisArg) :
     trailingTest ? true : false;
 
-// ... it should be parsed as 
+// ... it should be parsed as
 let whatShouldThisBeParsedAs =
   something ?
     callThisFunction(withThisArg) :
     trailingTest ? true : false;
 
-// Should *not* be parsed as 
+// Should *not* be parsed as
 let whatShouldThisBeParsedAs =
   (
     something ?
@@ -115,14 +115,14 @@ let ternaryResult =
     bbbbbbb :
     ccccc ? ddddddd : eeeee ? fffffff : ggggg;
 
-// Should be parsed as: 
+// Should be parsed as:
 let ternaryResult =
   aaaaaa ?
     bbbbbbb :
     ccccc ? ddddddd : eeeee ? fffffff : ggggg;
 
 let ternaryResult =
-  // The first Parens *must* be preserved! 
+  // The first Parens *must* be preserved!
   (x ? y : z) ?
     bbbbbbb :
     ccccccc ? ddddddd : eeeeeee ? fffffff : ggggg;
@@ -130,7 +130,7 @@ let ternaryResult =
 let ternaryResult =
   aaaaaaa ?
     bbbbbbb :
-    // The second Parens *must* be preserved! 
+    // The second Parens *must* be preserved!
     (x ? y : z) ?
       ddddddd : eeeeeee ? fffffff : ggggg;
 
@@ -141,7 +141,7 @@ let ternaryResult =
       y :
       z ?
         ddddddd :
-        // The final parent don't need to be preserved 
+        // The final parent don't need to be preserved
         eeeeeee ? fffffff : x ? y : z;
 
 let addOne = x => x + 1;

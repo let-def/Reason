@@ -1,4 +1,4 @@
-// Copyright (c) 2015-present, Facebook, Inc. All rights reserved. 
+// Copyright (c) 2015-present, Facebook, Inc. All rights reserved.
 
 let run = fun () => {
   TestUtils.printSection("Polymorphism");
@@ -73,10 +73,10 @@ let certainlyRequiresWrapping:
 
      let myFunc = (a:int) (b:int) => a + b; */
 
-// Fringe features 
+// Fringe features
 
 /*
-  // This parses, but doesn't type check 
+  // This parses, but doesn't type check
   module TryExtendingType = {type t = Hello of string;};
   type TryExtendingType.t += LookANewExtension of string;
  */

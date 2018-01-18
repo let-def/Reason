@@ -1,4 +1,4 @@
-// Copyright (c) 2015-present, Facebook, Inc. All rights reserved. 
+// Copyright (c) 2015-present, Facebook, Inc. All rights reserved.
 type t = {.};
 
 type t = {
@@ -35,7 +35,7 @@ type x = Js.t({.});
 
 type y = Js.t({..});
 
-// #1595: always break object rows (>= 2) for readability 
+// #1595: always break object rows (>= 2) for readability
 type o = {
   .
   a: int,
