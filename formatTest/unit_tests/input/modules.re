@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-present, Facebook, Inc. All rights reserved. */
+// Copyright (c) 2015-present, Facebook, Inc. All rights reserved. 
 
 let run = fun () => {
   TestUtils.printSection("Modules");
@@ -105,7 +105,7 @@ let opensAModuleLocally = {
     type i = int;
     let x:i = 10;
   };
-  /* Notice how local modules names may be used twice and are shadowed */
+  // Notice how local modules names may be used twice and are shadowed 
   module MyLocalModule: MySecondModuleType = {
     type someType = int;
     let x:someType = 10;
@@ -133,13 +133,13 @@ module type HasDestructivelySubstitutedPolyType =
   HasPolyType with type t('a) := list('a);
 
 module type HasDestructivelySubstitutedSubPolyModule = {
-  /* Cannot perform destructive substitution on submodules! */
-  /* module X: HasPolyType with type t := list (int, int); */
+  // Cannot perform destructive substitution on submodules! 
+  // module X: HasPolyType with type t := list (int, int); 
   module X: HasDestructivelySubstitutedPolyType;
 };
 module type HasSubPolyModule = {
-  /* Cannot perform destructive substitution on submodules! */
-  /* module X: HasPolyType with type t := list (int, int); */
+  // Cannot perform destructive substitution on submodules! 
+  // module X: HasPolyType with type t := list (int, int); 
   module X: HasPolyType;
 };
 
@@ -172,13 +172,13 @@ module InliningSig: {let x: int; let y:int;} = {
    * Comment inside of signature.
    */
   let x = 10;
-  /* Inline comment inside signature. */
+  // Inline comment inside signature. 
   let y = 20;
 };
 
 module MyFunctor = fun (M: HasTT) => {
   type reexportedTT = M.tt;
-  /* Inline comment inside module. */
+  // Inline comment inside module. 
   /** Following special comment inside module. */
   let someValue = 1000;
 };
@@ -213,11 +213,11 @@ module CurriedSugar (A:ASig, B:BSig) {
    let result = A.a + B.b;
    }: SigResult);
 
-   /* Not supported in OCaml OR Reason (Edit: now supported in OCaml for functions) */
+   // Not supported in OCaml OR Reason (Edit: now supported in OCaml for functions) 
    let x = fun (a:foo) :bar => baz;
    module x = fun (A:Foo) :Bar => Baz;
 
-   /* Supported in both OCaml and Reason */
+   // Supported in both OCaml and Reason 
    let x (a:foo) :bar => baz;
    module x (A:Foo) :Bar => Baz;
 
@@ -226,7 +226,7 @@ module CurriedSugarWithReturnType (A:ASig, B:BSig): SigResult {
   let result = A.a + B.b;
 };
 
-/* This is parsed as being equivalent to the above example */
+// This is parsed as being equivalent to the above example 
 module CurriedSugarWithAnnotatedReturnVal (A:ASig, B:BSig) = ({
   let result = A.a + B.b;
 }: SigResult);
@@ -276,10 +276,10 @@ module CurriedNoSugarFunctorResultInline = CurriedNoSugar {let a=10;} {let b=10;
 module ResultFromNonSimpleFunctorArg = CurriedNoSugar (MakeAModule {}, BMod);
 
 
-/* TODO: Functor type signatures should more resemble value signatures */
+// TODO: Functor type signatures should more resemble value signatures 
 let curriedFunc: (int,int)=>int = fun(a,b) => a + b;
 module type FunctorType = (ASig) => (BSig) => SigResult;
-/* Which is sugar for:*/
+// Which is sugar for:
 module type FunctorType2 = (_:ASig) => (_:BSig) => SigResult;
 
 /* Just for compability with existing OCaml ASTs you can put something other
@@ -288,11 +288,11 @@ module type FunctorType3 = (Blah:ASig) => (ThisIsIgnored:BSig) => SigResult;
 
 /* The actual functors themselves now have curried sugar (which the pretty
  * printer will enforce as well */
-/* The following: */
+// The following: 
 module CurriedSugarWithAnnotation2: (ASig) => (BSig) => SigResult =
   fun (A:ASig) => fun (B:BSig) => {let result = A.a + B.b;};
 
-/* Becomes: */
+// Becomes: 
 module CurriedSugarWithAnnotation: (ASig) => (BSig) => SigResult =
   fun (A:ASig, B:BSig) => {let result = A.a + B.b;};
 
@@ -345,7 +345,7 @@ module type HasRecursiveModules = {
 };
 
 
-/* From http://stackoverflow.com/questions/1986374/higher-order-type-constructors-and-functors-in-ocaml */
+// From http://stackoverflow.com/questions/1986374/higher-order-type-constructors-and-functors-in-ocaml 
 module type Type {type t;};
 module Char {type t = char;};
 module List (X:Type) {type t = list(X.t);};
@@ -367,7 +367,7 @@ module Example2 (F:(Type)=>Type, X:Type) {
 
 Printf.printf("\nModules And Functors: %n\n", CurriedNoSugarFunctorResultInline.result);
 
-/* We would have: */
+// We would have: 
 /* module CurriedSugarWithAnnotation: ASig => BSig => SigResult =
     fun (A:ASig) (B:BSig) => {let result = A.a + B.b;; */
 
@@ -411,7 +411,7 @@ module SecondClass2 = (val (module MyModule: HasInt));
 
 let p = SecondClass.x;
 
-/* Opening Modules */
+// Opening Modules 
 module M = {
   module Inner = {};
 };

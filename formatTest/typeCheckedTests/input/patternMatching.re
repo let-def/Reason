@@ -103,7 +103,7 @@ let res =
             | None => 0));
   };
 
-/* test (), which is sugar for (()) */
+// test (), which is sugar for (()) 
 switch (Some(())) {
 | Some(()) => 1
 | _ => 2
@@ -154,7 +154,7 @@ switch (Some(1)) {
 | _ => 3
 };
 
-/* with parens around direct list pattern in constructor pattern */
+// with parens around direct list pattern in constructor pattern 
 switch (None) {
 | Some([]) => ()
 | Some([_]) when true => ()
@@ -164,7 +164,7 @@ switch (None) {
 | _ => ()
 };
 
-/* no parens around direct list pattern in constructor pattern (sugar) */
+// no parens around direct list pattern in constructor pattern (sugar) 
 switch (None) {
 | Some [] => ()
 | Some [_] when true => ()
@@ -174,7 +174,7 @@ switch (None) {
 | _ => ()
 };
 
-/* with parens around direct array pattern in constructor pattern */
+// with parens around direct array pattern in constructor pattern 
 switch (None) {
 | Some([| |]) => "empty"
 | Some([| _ |]) when true => "one any"
@@ -183,7 +183,7 @@ switch (None) {
 | _ => "many"
 };
 
-/* no parens around direct array pattern in constructor pattern (sugar) */
+// no parens around direct array pattern in constructor pattern (sugar) 
 switch (None) {
 | Some [||] => "empty"
 | Some [|_|] when true => "one any"
@@ -192,14 +192,14 @@ switch (None) {
 | _ => "many"
 };
 
-/* parens around direct record pattern in constructor pattern */
+// parens around direct record pattern in constructor pattern 
 switch (None) {
 | Some({x}) when true => ()
 | Some({x, y}) => ()
 | _ => ()
 };
 
-/* no parens around direct record pattern in constructor pattern (sugar) */
+// no parens around direct record pattern in constructor pattern (sugar) 
 switch (None) {
 | Some {x} when true => ()
 | Some {x, y} => ()

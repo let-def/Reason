@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-present, Facebook, Inc. All rights reserved. */
+// Copyright (c) 2015-present, Facebook, Inc. All rights reserved. 
 [@autoFormat let wrap = 80; let shift = 2];
 
 Modules.run();
@@ -11,11 +11,11 @@ BasicStructures.run();
 
 TestUtils.printSection("General Syntax");
 
-/* Won't work! */
-/* let matchingFunc a = match a with */
-/*   `Thingy x => (print_string "matched thingy x"); x */
-/*   | `Other x => (print_string "matched other x"); x;; */
-/*  */
+// Won't work! 
+// let matchingFunc a = match a with 
+//   `Thingy x => (print_string "matched thingy x"); x 
+//   | `Other x => (print_string "matched other x"); x;; 
+//  
 let matchingFunc = a =>
   switch (a) {
   | `Thingy(x) =>
@@ -36,7 +36,7 @@ type allParensCanBeRemoved =
 type firstTwoShouldBeGroupedAndFirstThree =
   ((int => int) => int) => int;
 
-/* Same thing now but with type constructors instead of each int */
+// Same thing now but with type constructors instead of each int 
 type firstTwoShouldBeGroupedInParens =
   (list(int) => list(int), list(int)) =>
   list(int);
@@ -65,7 +65,7 @@ type allParensCanBeRemoved =
 type firstTwoShouldBeGroupedAndFirstThree =
   (~first: (int => int) => int) => int;
 
-/* Same thing now, but with type constructors instead of int */
+// Same thing now, but with type constructors instead of int 
 type firstNamedArgShouldBeGroupedInParens =
   (
     ~first: list(int) => list(int),
@@ -120,7 +120,7 @@ type noParensNeeded =
 type firstNamedArgNeedsParens =
   (~one: (int, int) => int, ~two: int) => int;
 
-/* Now, let's try type aliasing */
+// Now, let's try type aliasing 
 /* Unless wrapped in parens, types between arrows may not be aliased, may not
  * themselves be arrows. */
 type parensRequiredAroundFirstArg =
@@ -139,7 +139,7 @@ type myTypeDef('a) = list('a);
 
 type instatiatedTypeDef = myTypeDef(int) => int;
 
-/* Test a type attribute for good measure */
+// Test a type attribute for good measure 
 /* We should clean up all of the attribute tagging eventually, but for now,
  * let's make it super ugly to get out of the way of all the formatting/parsing
  * implementations (fewer conflicts during parsing, fewer edge cases during
@@ -172,17 +172,17 @@ constraint 'a = (unit, unit);
 
 type onelineConstrain = 'a constraint 'a = int;
 
-/* This must be in trunk but not in this branch of OCaml */
-/* type withNestedRecords = MyConstructor {myField: int} */
+// This must be in trunk but not in this branch of OCaml 
+// type withNestedRecords = MyConstructor {myField: int} 
 type colors =
   | Red(int)
   | Black(int)
   | Green(int);
 
-/* Another approach is to require declared variants to wrap any record */
-/* type myRecord = MyRecord {name: int}; */
-/* let myValue = MyRecord {name: int}; */
-/* This would force importing of the module */
+// Another approach is to require declared variants to wrap any record 
+// type myRecord = MyRecord {name: int}; 
+// let myValue = MyRecord {name: int}; 
+// This would force importing of the module 
 /* This would also lend itself naturally to pattern matching - and avoid having
    to use `.` operator at all since you normally destructure. */
 type nameBlahType = {nameBlah: int};
@@ -280,7 +280,7 @@ let point2D = {x: 20, y: 30};
 let point3D: point3D = {
   x: 10,
   y: 11,
-  z: 80 /* Optional Comma */
+  z: 80 // Optional Comma 
 };
 
 let printPoint = (p: point) => {
@@ -317,8 +317,8 @@ let res2 =
 
     This allows the parser to distinguish between
 
-        let x = {a};    /* Record {a:a} */
-        let x = {a;};   /* Single item sequence returning identifier {a} */
+        let x = {a};    // Record {a:a} 
+        let x = {a;};   // Single item sequence returning identifier {a} 
  */
 let res3 =
   printPoint(
@@ -341,7 +341,7 @@ type hiredPerson = {
 
 let o: person = {name: "bob", age: 10};
 
-/* Parens needed? Nope! */
+// Parens needed? Nope! 
 let o: person = {name: "bob", age: 10};
 
 let printPerson = (p: person) => {
@@ -349,17 +349,17 @@ let printPerson = (p: person) => {
   p.name ++ p.name;
 };
 
-/* let dontParseMeBro x y:int = x = y;*/
-/* With this unification, anywhere eyou see `= fun` you can just ommit it */
-let blah = a => a; /* Done */
+// let dontParseMeBro x y:int = x = y;
+// With this unification, anywhere eyou see `= fun` you can just ommit it 
+let blah = a => a; // Done 
 
-let blah = a => a; /* Done (almost) */
+let blah = a => a; // Done (almost) 
 
-let blah = (a, b) => a; /* Done */
+let blah = (a, b) => a; // Done 
 
-let blah = (a, b) => a; /* Done (almost) */
+let blah = (a, b) => a; // Done (almost) 
 
-/* More than one consecutive pattern must have a single case */
+// More than one consecutive pattern must have a single case 
 type blah = {blahBlah: int};
 
 let blah = (a, {blahBlah}) => a;
@@ -385,21 +385,21 @@ module TryToExportTwice = {
 let onlyDoingThisTopLevelLetToBypassTopLevelSequence = {
   let x = {
     print_int(1);
-    print_int(20); /* Missing trailing SEMI */
+    print_int(20); // Missing trailing SEMI 
   };
   let x = {
     print_int(1);
     print_int(
       20
-    ); /* Ensure missing middle SEMI reported well */
+    ); // Ensure missing middle SEMI reported well 
     print_int(20);
   };
   let x = {
     print_int(1);
     print_int(20);
     10;
-    /* Comment in final position */
-  }; /* Missing final SEMI */
+    // Comment in final position 
+  }; // Missing final SEMI 
   x + x;
 };
 
@@ -426,12 +426,12 @@ Printf.printf(
   thisReturnsA()
 );
 
-/* Pattern matching */
+// Pattern matching 
 let blah = arg =>
   switch (arg) {
-  /* Comment before Bar */
+  // Comment before Bar 
   | /* Comment between bar/pattern */ Red(_) => 1
-  /* Comment Before non-first bar */
+  // Comment Before non-first bar 
   | /* Comment betwen bar/pattern */ Black(_) => 0
   | Green(_) => 0
   };
@@ -444,26 +444,26 @@ let blah =
   | Black(_) => 0
   | Green(_) => 1;
 
-/* `fun a => a` is read as "a function that maps a to a". Then the */
-/* above example is read: "a function that 'either maps' Red to.. or maps .." */
-/* Thc00f564e first bar is read as "either maps" */
+// `fun a => a` is read as "a function that maps a to a". Then the 
+// above example is read: "a function that 'either maps' Red to.. or maps .." 
+// Thc00f564e first bar is read as "either maps" 
 /* Curried form is not supported:
       let blah x | Red _ => 1 | Black _ => 0;
       Theres no sugar rule for dropping => fun, only = fun
    */
-/* let blahCurriedX x => fun  /* See, nothing says we can drop the => fun */ */
-/*   |(Red x | Black x | Green x) => 1     /* With some effort, we can ammend the sugar rule that would */ */
-/*   | Black x => 0                       /* Allow us to drop any => fun.. Just need to make pattern matching */ */
-/*   | Green x => 0;                      /* Support that */ */
-/*  */
+// let blahCurriedX x => fun  /* See, nothing says we can drop the => fun */ 
+//   |(Red x | Black x | Green x) => 1     /* With some effort, we can ammend the sugar rule that would */ 
+//   | Black x => 0                       /* Allow us to drop any => fun.. Just need to make pattern matching */ 
+//   | Green x => 0;                      /* Support that */ 
+//  
 let blahCurriedX = x =>
   fun
   | Red(x)
   | Black(x)
   | Green(x) =>
-    1 /* With some effort, we can ammend the sugar rule that would */
-  | Black(x) => 0 /* Allow us to drop any => fun.. Just need to make pattern matching */
-  | Green(x) => 0; /* Support that */
+    1 // With some effort, we can ammend the sugar rule that would 
+  | Black(x) => 0 // Allow us to drop any => fun.. Just need to make pattern matching 
+  | Green(x) => 0; // Support that 
 
 let sameThingInLocal = {
   let blahCurriedX = x =>
@@ -471,13 +471,13 @@ let sameThingInLocal = {
     | Red(x)
     | Black(x)
     | Green(x) =>
-      1 /* With some effort, we can ammend the sugar rule that would */
-    | Black(x) => 0 /* Allow us to drop any => fun.. Just need to make pattern matching */
-    | Green(x) => 0; /* Support that */
+      1 // With some effort, we can ammend the sugar rule that would 
+    | Black(x) => 0 // Allow us to drop any => fun.. Just need to make pattern matching 
+    | Green(x) => 0; // Support that 
   blahCurriedX;
 };
 
-/* This should be parsed/printed exactly as the previous */
+// This should be parsed/printed exactly as the previous 
 let blahCurriedX = x =>
   fun
   | Red(x)
@@ -486,10 +486,10 @@ let blahCurriedX = x =>
   | Black(x) => 0
   | Green(x) => 0;
 
-/* Any time there are multiple match cases we require a leading BAR */
+// Any time there are multiple match cases we require a leading BAR 
 let v = Red(10);
 
-let Black(x) | Red(x) | Green(x) = v; /* So this NON-function still parses */
+let Black(x) | Red(x) | Green(x) = v; // So this NON-function still parses 
 
 /* This doesn't parse, however (and it doesn't in OCaml either):
      let | Black(x) | Red(x) | Green(x) = v;
@@ -523,24 +523,24 @@ let res = {
   print_int(b);
 };
 
-/* let result = LyList.map((fun | [] => true | _ => false), []); */
+// let result = LyList.map((fun | [] => true | _ => false), []); 
 /* OTHERWISE: You cannot tell if a is the first match case falling through or
  * a curried first arg */
-/* let blah = fun a | patt => 0 | anotherPatt => 1; */
-/* let blah a patt => 0 | anotherPatt => 1; */
-/*simple pattern  EQUALGREATER      expr */
+// let blah = fun a | patt => 0 | anotherPatt => 1; 
+// let blah a patt => 0 | anotherPatt => 1; 
+//simple pattern  EQUALGREATER      expr 
 let blah = (a, {blahBlah}) => a;
 
-/*            match_case             */
-/*     pattern EQUALGREATER  expr */
+//            match_case             
+//     pattern EQUALGREATER  expr 
 let blah =
   fun
   | Red(_) => 1
   | Black(_) => 0
   | Green(_) => 0;
 
-/* Won't work! */
-/* let arrowFunc = fun a b => print_string "returning aplusb from arrow"; a + b;;  */
+// Won't work! 
+// let arrowFunc = fun a b => print_string "returning aplusb from arrow"; a + b;;  
 let arrowFunc = (a, b) => {
   print_string("returning aplusb from arrow");
   a + b;
@@ -565,7 +565,7 @@ dummy(res2);
 
 dummy(res3);
 
-/* Some edge cases */
+// Some edge cases 
 let myFun =
     (firstArg, Red(x) | Black(x) | Green(x)) =>
   firstArg + x;
@@ -620,7 +620,7 @@ let result =
 
 let lookTuplesRequireParens = (1, 2);
 
-/* let thisDoesntParse = 1, 2;  */
+// let thisDoesntParse = 1, 2;  
 let tupleInsideAParenSequence = {
   print_string(
     "look, a tuple inside a sequence"
@@ -647,7 +647,7 @@ let makeIncrementer = (delta: int) : (int => int) =>
    */
 let myAnnotatedValBinding: int = 10;
 
-/* Class functions (constructors) and methods are unified in the same way */
+// Class functions (constructors) and methods are unified in the same way 
 class classWithNoArg = {
   pub x = 0;
   pub y = 0;
@@ -685,7 +685,7 @@ type stillARecord = {
 
 /* Rebase latest OCaml to get the following: And fixup
    `generalized_constructor_arguments` according to master. */
-/* type ('a, 'b) myOtherThing = Leaf {first:'a, second: 'b} | Null; */
+// type ('a, 'b) myOtherThing = Leaf {first:'a, second: 'b} | Null; 
 type branch('a, 'b) = {
   first: 'a,
   second: 'b
@@ -699,19 +699,19 @@ type yourThing = myOtherThing(int, int);
 
 /* Conveniently - this parses exactly how you would intend! No *need* to wrap
    in an extra [], but it doesn't hurt */
-/* FIXME type lookAtThesePolyVariants = list [`Red] ; */
-/* FIXME type bracketsGroupMultipleParamsAndPrecedence = list (list (list [`Red])); */
-/* FIXME type youCanWrapExtraIfYouWant = (list [`Red]); */
-/* FIXME type hereAreMultiplePolyVariants = list [`Red | `Black]; */
-/* FIXME type hereAreMultiplePolyVariantsWithOptionalWrapping = list ([`Red | `Black]); */
+// FIXME type lookAtThesePolyVariants = list [`Red] ; 
+// FIXME type bracketsGroupMultipleParamsAndPrecedence = list (list (list [`Red])); 
+// FIXME type youCanWrapExtraIfYouWant = (list [`Red]); 
+// FIXME type hereAreMultiplePolyVariants = list [`Red | `Black]; 
+// FIXME type hereAreMultiplePolyVariantsWithOptionalWrapping = list ([`Red | `Black]); 
 /*
-   /* Proposal: ES6 style lambdas: */
+   // Proposal: ES6 style lambdas: 
 
-   /* Currying */
+   // Currying 
    let lookES6Style = (`Red x) (`Black y) => { };
    let lookES6Style (`Red x) (`Black y) => { };
 
-   /* Matching the single argument */
+   // Matching the single argument 
    let lookES6Style = oneArg => match oneArg with
      | `Red x => x
      | `Black x => x;
@@ -762,87 +762,87 @@ let a = 10;
 
 let b = 20;
 
-/*A*/
+//A
 let named = (~a, ~b) => a + b;
 
 type named = (~a: int, ~b: int) => int;
 
-/*B*/
+//B
 let namedAlias = (~a as aa, ~b as bb) => aa + bb;
 
 let namedAlias = (~a as aa, ~b as bb) => aa + bb;
 
 type namedAlias = (~a: int, ~b: int) => int;
 
-/*C*/
+//C
 let namedAnnot = (~a: int, ~b: int) => 20;
 
-/*D*/
+//D
 let namedAliasAnnot =
     (~a as aa: int, ~b as bb: int) => 20;
 
-/*E*/
+//E
 let myOptional = (~a=?, ~b=?, ()) => 10;
 
 type named = (~a: int=?, ~b: int=?, unit) => int;
 
-/*F*/
+//F
 let optionalAlias = (~a as aa=?, ~b as bb=?, ()) => 10;
 
-/*G*/
+//G
 let optionalAnnot = (~a: int=?, ~b: int=?, ()) => 10;
 
-/*H*/
+//H
 let optionalAliasAnnot =
     (~a as aa: int=?, ~b as bb: int=?, ()) => 10;
 
-/*I: */
+//I: 
 let defOptional = (~a=10, ~b=10, ()) => 10;
 
 type named = (~a: int=?, ~b: int=?, unit) => int;
 
-/*J*/
+//J
 let defOptionalAlias =
     (~a as aa=10, ~b as bb=10, ()) => 10;
 
-/*K*/
+//K
 let defOptionalAnnot =
     (~a: int=10, ~b: int=10, ()) => 10;
 
-/*L*/
+//L
 let defOptionalAliasAnnot =
     (~a as aa: int=10, ~b as bb: int=10, ()) => 10;
 
-/*M: Invoking them - Punned */
+//M: Invoking them - Punned 
 let resNotAnnotated = named(~a, ~b);
 
-/*N:*/
+//N:
 let resAnnotated: int = named(~a, ~b);
 
-/*O: Invoking them */
+//O: Invoking them 
 let resNotAnnotated = named(~a, ~b);
 
-/*P: Invoking them */
+//P: Invoking them 
 let resAnnotated: int = named(~a, ~b);
 
-/*Q: Here's why "punning" doesn't work!  */
-/* Is b:: punned with a final non-named arg, or is b:: supplied b as one named arg? */
+//Q: Here's why "punning" doesn't work!  
+// Is b:: punned with a final non-named arg, or is b:: supplied b as one named arg? 
 let b = 20;
 
 let resAnnotated = named(~a, ~b);
 
-/*R: Proof that there are no ambiguities with return values being annotated */
+//R: Proof that there are no ambiguities with return values being annotated 
 let resAnnotated: ty = named(~a, b);
 
-/*S: Explicitly passed optionals are a nice way to say "use the default value"*/
+//S: Explicitly passed optionals are a nice way to say "use the default value"
 let explictlyPassed =
   myOptional(~a=?None, ~b=?None);
 
-/*T: Annotating the return value of the entire function call */
+//T: Annotating the return value of the entire function call 
 let explictlyPassedAnnotated: int =
   myOptional(~a=?None, ~b=?None);
 
-/*U: Explicitly passing optional with identifier expression */
+//U: Explicitly passing optional with identifier expression 
 let a = None;
 
 let explictlyPassed = myOptional(~a?, ~b=?None);
@@ -1004,22 +1004,22 @@ let something =
       | [_, ..._] => "nonEmptyList"
     );
 
-/*  A | B = X; */
+//  A | B = X; 
 let A | B = X;
 
-/*  A | (B | C) = X; */
+//  A | (B | C) = X; 
 let A | (B | C) = X;
 
-/* (A | B) | (C | D) = X; */
+// (A | B) | (C | D) = X; 
 let A | B | (C | D) = X;
 
-/*  A | B | (C | D) = X; */
+//  A | B | (C | D) = X; 
 let A | B | (C | D) = X;
 
-/* (A | B) | C = X; */
+// (A | B) | C = X; 
 let A | B | C = X;
 
-/*  A | B | C = X; */
+//  A | B | C = X; 
 let A | B | C = X;
 
 /** External function declaration
@@ -1041,7 +1041,7 @@ let foo =
 
 let zzz = myFunc(1, 2, [||]);
 
-/* 1492 */
+// 1492 
 let registerEventHandlers =
     (
       ~window: Window.t,
@@ -1058,12 +1058,12 @@ let registerEventHandlers =
       ()
     ) => 1;
 
-/* #1320: record destrucuring + renaming */
+// #1320: record destrucuring + renaming 
 let x = ({state as prevState}) => 1;
 
 let x = ({ReasonReact.state as prevState}) => 1;
 
-/* 1567: optional parens around expr constraint in constructor expression */
+// 1567: optional parens around expr constraint in constructor expression 
 Some(x: int);
 
 Some(x: int);
@@ -1130,7 +1130,7 @@ foo(
   ~z=[@foo] -0.1p
 );
 
-/* Smooth formatting of functions with callbacks as arguments */
+// Smooth formatting of functions with callbacks as arguments 
 funWithCb("text", () => doStuff());
 
 funWithCb([@attr] "text", [@myAttr] () =>

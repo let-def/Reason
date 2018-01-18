@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-present, Facebook, Inc. All rights reserved. */
+// Copyright (c) 2015-present, Facebook, Inc. All rights reserved. 
 
 let run = fun () => {TestUtils.printSection("Basic Structures");};
 
@@ -95,7 +95,7 @@ let x = !(!foo.bar);
 
 let x = !(!foo#bar);
 
-/* Test precedence on access sugar */
+// Test precedence on access sugar 
 let x = arr^[0];
 
 let x = Array.get(arr^,0);
@@ -108,8 +108,8 @@ let x = Array.set(arr^,0,1);
 
 let x = arr^[0] = 1;
 
-/* Comments */
-/*Below is an empty comment*/
+// Comments 
+//Below is an empty comment
 /**/
 /**                            IF
  *============================================================================
@@ -149,7 +149,7 @@ let loop(appTime,frameTime) = {
   process(appTime,frameTime);
 };
 
-/* These parens should be kept around the entire last if/then/else */
+// These parens should be kept around the entire last if/then/else 
 if (something) {
   if (somethingElse) {
     ();
@@ -158,7 +158,7 @@ if (something) {
   };
 };
 
-/* These parens should be kept around just the last if/then*/
+// These parens should be kept around just the last if/then
 if (something) {if (somethingElse) {();} else {"blah";};};
 
 /* Parens should be generated to wrap the entire final if then else.
@@ -171,7 +171,7 @@ if (true) {
   };
 };
 
-/* Should print two */
+// Should print two 
 if (true) {
   if (false) {
     print_string("one");
@@ -180,7 +180,7 @@ if (true) {
   };
 };
 
-/* Should not print */
+// Should not print 
 if (false) {
   if (true) {
     print_string("one");
@@ -222,7 +222,7 @@ let myRecord = {
 if (printIfFirstArgGreater) {
   fun(a,b) => if (a > b) {print_string("a > b");};
 } else {fun(a,b) => if (a > b) {print_string("b < a");};};
-/* Should Be Parsed As: Cleary a type error, but at least the parsing makes that clear */
+// Should Be Parsed As: Cleary a type error, but at least the parsing makes that clear 
 if (printIfFirstArgGreater) {
   fun(a,b) =>
     if (a > b) {
@@ -234,14 +234,14 @@ if (printIfFirstArgGreater) {
 
 fun(a,b) => if (a > b) {print_string("a > b");};
 
-/* What you probably wanted was: */
+// What you probably wanted was: 
 if (printIfFirstArgGreater) {
   fun(a,b) => (if (a > b) {print_string("a > b");});
 } else {
   fun(a,b) => (if (a > b) {print_string("b < a");});
 };
 
-/* Mutative if statement: Not used to evaluate to something. */
+// Mutative if statement: Not used to evaluate to something. 
 if (10 < 100) {
   let msg = "If there was any doubt, 10 is in fact less than 100.";
   print_string (msg);
@@ -264,30 +264,30 @@ let x = (10:int);
 let x:int = 10;
 let (x:int) = 10;
 let (x:int) = (10:int);
-/* let (x:int) = (10:string); */
-/* let (x:string) = ("hello":int); */
+// let (x:int) = (10:string); 
+// let (x:string) = ("hello":int); 
 
 /**                            TUPLES
  *============================================================================
  */;
 
-/* In Reason, types look like the data they model! Tuples are no exception. */
+// In Reason, types look like the data they model! Tuples are no exception. 
 type pairOfInts = (int, int);
 let (letBindingWithTypeConstraint:int) = 10;
 let ((tupleItem:int), (withTypeConstraint:int)) = (10, 20);
 
-/* To make sure that tuple field annotations are annotating the entire field */
+// To make sure that tuple field annotations are annotating the entire field 
 let _dummyFunc(x) = 10;
 let annotatingFuncApplication = (_dummyFunc("a"):int, _dummyFunc("a"):int);
 
-/* Pretty printer might stick the [int] at the label. */
+// Pretty printer might stick the [int] at the label. 
 let annotatingSingleFuncApplication = (_dummyFunc("a"):int);
 
-/* So lets try a place where it won't */
+// So lets try a place where it won't 
 let annotatingSingleFuncApplication = {
-  /* Commenting a let binding. */
+  // Commenting a let binding. 
   let a = 100;
-  /* Commenting another let binding. */
+  // Commenting another let binding. 
   let int = 200;
   /*
    * This demonstrates why named arguments cannot simply have the form (func
@@ -299,7 +299,7 @@ let annotatingSingleFuncApplication = {
 let (tupleItem:int, constrainedWithoutGrouping:int) = (10, 20);
 let (tupleItem, withOutsideTypeConstraint):(int,int) = (10, 20);
 
-/* Trailing commas */
+// Trailing commas 
 let trailingCommaAccepted = (1, 2,);
 let moreTrailing = (1, 2, 3, 4, 5, 7, );
 
@@ -307,23 +307,23 @@ let moreTrailing = (1, 2, 3, 4, 5, 7, );
  * ============================================================================
  */;
 
-/* Anatomy:        -Head-      --------- Tail---------  nil: You can't see nil */
+// Anatomy:        -Head-      --------- Tail---------  nil: You can't see nil 
 let x: list(int) = [    1,      2, 3, 4, 5, 6, 7, 8, 9];
 let hd = "appendedToHead";
 let tl = ["listTo", "append", "to"];
 
-/* To push *one* and only *one* item to the front of a list - use [hd, ...tl] */
+// To push *one* and only *one* item to the front of a list - use [hd, ...tl] 
 let result: list(string) = [hd, ...tl];
 
-/* Is the same as writing */
+// Is the same as writing 
 let result: list(string) = ["appendedToHead", "listTo", "append", "to"];
 
-/* To operate on lists, use pattern matching */
+// To operate on lists, use pattern matching 
 let rec size = fun
   | [] => 0
   | [hd, ...tl] => 1 + size(tl);
 
-/* Optimize for tail recursion */
+// Optimize for tail recursion 
 let rec size = fun(soFar,lst) => switch (lst) {
   | [] => 0
   | [hd, ...tl] => size(soFar + 1,tl)
@@ -380,15 +380,15 @@ let (MyThing(_) as ppp) |(YourThing(_) as ppp) = ppp;
 
 
 
-/* TODO: */
-/* let rec nestedMatch lstLst => match lstLst with { */
-/*   hd::tl: match tl with { */
-/*     []: 0 + 0, */
-/*     tlHd::tlTl: 0 + 1, */
-/*   }, */
-/*   []: 0 */
-/* }; */
-/*  */
+// TODO: 
+// let rec nestedMatch lstLst => match lstLst with { 
+//   hd::tl: match tl with { 
+//     []: 0 + 0, 
+//     tlHd::tlTl: 0 + 1, 
+//   }, 
+//   []: 0 
+// }; 
+//  
 
 
 /**                               ARRAYS
@@ -402,10 +402,10 @@ let arrayWithOne = [|10|];
 let arrayWithTwo = [|10, 10|];
 let secondItem = Array.get(arrayWithTwo,1);
 
-/* Getting And Setting: Yeah, we should really change this */
-/* Get an array item at index 1 */
+// Getting And Setting: Yeah, we should really change this 
+// Get an array item at index 1 
 let secondItem = arrayWithTwo[1];
-/* Set an array item at index 1 */
+// Set an array item at index 1 
 arrayWithTwo[1] = 300;
 
 
@@ -415,7 +415,7 @@ arrayWithTwo[1] = 300;
  *  The language supports mutating strings, but that should not be depended upon.
  */;
 let myString = "asdf";
-myString.[2] = '9'; /* Replacing a character: I could do without this sugar */
+myString.[2] = '9'; // Replacing a character: I could do without this sugar 
 
 
 
@@ -434,15 +434,15 @@ myString.[2] = '9'; /* Replacing a character: I could do without this sugar */
 
 let one = 900;
 let two = 10000;
-/* Tuple expressions can be annotated without additional paren wrapping */
+// Tuple expressions can be annotated without additional paren wrapping 
 let myTuple = (one:int, two:int);
 type myTupleType = (int, int);
 let myTuple = (myTuple:myTupleType);
 
-/* Anything *outside* of a tuple, must still be annotated within parens. */
+// Anything *outside* of a tuple, must still be annotated within parens. 
 let myTuple = ((one:int, two:int):myTupleType);
 
-/* Now functions that accept a single argument being a tuple look familiar */
+// Now functions that accept a single argument being a tuple look familiar 
 let addValues = fun (a:int, b:int) => {
   a + b;
 };
@@ -458,11 +458,11 @@ let functionReturnValueType (i:int, s:string): (int) => int = fun(x) => x + 1;
 let curriedFormOne (i:int, s:string) = s ++ string_of_int(i);
 
 let curriedFormTwo (i:int, x:int) :(int, int) = (i, x);
-/* let nonCurriedFormTwo = fun (i:int, x:int) (:(int, int)) => (i, x); */
+// let nonCurriedFormTwo = fun (i:int, x:int) (:(int, int)) => (i, x); 
 
 let curriedFormThree (i:int, (a:int, b:int):(int, int)) :(int, int, int) = (i, a, b);
 
-/* let nonCurriedFormThree = fun (i:int, (a:int, b:int):(int, int)) (:(int, int, int)) => (i, a, b);  */
+// let nonCurriedFormThree = fun (i:int, (a:int, b:int):(int, int)) (:(int, int, int)) => (i, a, b);  
 
 
 /** TODO: But this, however doesn't work.
@@ -477,7 +477,7 @@ let myFunc: myFuncType = fun (a,b) => a + b;
 
 let funcWithTypeLocallyAbstractTypes (type atype, type btype, a, b, c: (atype, btype) => unit) = c(a,b);
 
-/* Checks that function types aren't unnecessary wrapped */
+// Checks that function types aren't unnecessary wrapped 
 type a = ((unit => unit));
 
 type b =
@@ -516,22 +516,22 @@ let anotherRecord = {
 
 let makeRecordBase () {name: "Joe", age: 30, occupation: "Engineer"};
 let anotherRecord = {
-  /* These parens should be evaporated. */
+  // These parens should be evaporated. 
   ...(makeRecordBase ()),
   name: "joe++",
   age: testRecord.age + 10
 };
 
 let anotherRecord = {
-  /* Comments should be correctly placed before ... expression */
+  // Comments should be correctly placed before ... expression 
   ...makeRecordBase(),
-  /* Comment after record extension */
+  // Comment after record extension 
   name: "joe++",
   age: testRecord.age + 10
 };
 
 let anotherRecord = {
-  /* Currently, type annotations must be wrapped in parens - that's easy to improve */
+  // Currently, type annotations must be wrapped in parens - that's easy to improve 
   ...(makeRecordBase () : withThreeFields),
   name: "joe++",
   age: testRecord.age + 10
@@ -539,7 +539,7 @@ let anotherRecord = {
 
 
 let anotherRecord = {
-  /* This is meaningless, sure */
+  // This is meaningless, sure 
   ...someArray.[0] = 20,
   name: "joe++",
   age: testRecord.age + 10
@@ -568,7 +568,7 @@ let anotherRecord = {
   age: testRecord.age + 10
 };
 
-/* Record type punning */
+// Record type punning 
 type props = {title: string};
 
 type state = unit;
@@ -583,18 +583,18 @@ type mutableComponent = {mutable props};
 
 type mutabeleComponent2 = {mutable props, mutable state, style: int,};
 
-/* Don't pun parameterized types */
+// Don't pun parameterized types 
 type description('props) = {
   element: string,
   tag: tag('props)
 };
 
-/* Don't pun types from other modules */
+// Don't pun types from other modules 
 module Foo = {
   type bar = {foo: Baz.foo};
 };
 
-/* Don't pun field names that aren't "simple" */
+// Don't pun field names that aren't "simple" 
 type foo = {
   bar: Baz.bar,
   qux: qux,
@@ -607,14 +607,14 @@ let moreFoo = {
   fooo: Fooo.fooo
 };
 
-/* record value punning */
+// record value punning 
 
 let props = {title: "hi"};
-/* no punning available for a single field. Can't tell the difference with a scope + expression */
+// no punning available for a single field. Can't tell the difference with a scope + expression 
 let componentA = {props: props};
-/* pun for real */
+// pun for real 
 let componentB = {props: props, state: ()};
-/* pun fields with module prefix too */
+// pun fields with module prefix too 
 let foo = {Foo.foo: foo};
 let bar = {Foo.foo: foo, bar: 1};
 let bar = {bar: 1, Foo.foo: foo};
@@ -626,19 +626,19 @@ switch (foo) {
 | {y: 1, M.x: x} => 2
 };
 
-/* Requested in #566 */
+// Requested in #566 
 let break_after_equal = no_break_from_here(some_call(to_here));
 
-/* Pexp_letexception */
+// Pexp_letexception 
 let () = {
   exception E;
   raise(E)
 };
 
-/* # 1587: don't print fun keyword when printing Pexp_fun in a record expression  */
+// # 1587: don't print fun keyword when printing Pexp_fun in a record expression  
 {contents: fun () => ((): unit)};
 
-/* #1556: Always break nested record/obj */
+// #1556: Always break nested record/obj 
 let z = {a: {b: c, d: e}, f: g};
 
 let z = {a: {"b": c, "d": e}, f: g};

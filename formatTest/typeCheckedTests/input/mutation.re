@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-present, Facebook, Inc. All rights reserved. */
+// Copyright (c) 2015-present, Facebook, Inc. All rights reserved. 
 
 /**
  * Testing mutations.
@@ -13,8 +13,8 @@ let holdsAHoldsABool = ref(ref(true));
 
 let () = holdsAUnit := holdsABool := false;
 
-/* Should be parsed as: */
-/* And so they should both be printed the same */
+// Should be parsed as: 
+// And so they should both be printed the same 
 let () = holdsAUnit := (holdsABool := false);
 
 /*

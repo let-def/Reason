@@ -1,9 +1,9 @@
-/* **** comment */
+// **** comment 
 
 /*** comment */
 
 /*** docstring */
-/* comment */
+// comment 
 
 /*** docstring */
 
@@ -26,13 +26,13 @@
 
 /** (*** comment *) */;
 
-/* (** comment *) */
-/* (*** comment *) */
-/* *(*** comment *) */
-/* comment **/
-/* comment ***/
-/* comment ****/
-/* comment *****/
+// (** comment *) 
+// (*** comment *) 
+// *(*** comment *) 
+// comment *
+// comment **
+// comment ***
+// comment ****
 /**
  * Multiline
  */;

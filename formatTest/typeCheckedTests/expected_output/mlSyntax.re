@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-present, Facebook, Inc. All rights reserved. */
+// Copyright (c) 2015-present, Facebook, Inc. All rights reserved. 
 /**
  * Testing pattern matching using ml syntax to exercise nesting of cases.
  */;
@@ -26,7 +26,7 @@ let doubleBarNested =
   | Q => true
   | _ => false;
 
-/* Liberal use of the Any pattern being compatible with multiple arguments  */
+// Liberal use of the Any pattern being compatible with multiple arguments  
 let doubleBarAnyPatterns =
   fun
   | X
@@ -68,7 +68,7 @@ let some = Some((1, 2, 3));
 
 let (\===) = (==);
 
-/* Test regression for https://github.com/facebook/Reason/issues/222 */
+// Test regression for https://github.com/facebook/Reason/issues/222 
 let _ = Pervasives.(==);
 
 let physicalEquality = 1 == 1;

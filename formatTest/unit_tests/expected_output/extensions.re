@@ -1,4 +1,4 @@
-/* Extension sugar */
+// Extension sugar 
 %extend
 open M;
 
@@ -46,7 +46,7 @@ let x =
   | Invalid_argument(msg) => prerr_endline(msg)
   };
 
-/* At structure level */
+// At structure level 
 try%extend () {
 | _ => ()
 };
@@ -71,7 +71,7 @@ fun%extend
 | None => ()
 | Some(1) => ();
 
-/* In a top-level binding */
+// In a top-level binding 
 let x =
   try%extend () {
   | _ => ()
@@ -101,7 +101,7 @@ let x =
   | None => ()
   | Some(1) => ();
 
-/* With two extensions, alone */
+// With two extensions, alone 
 let x = [%extend1
   try%extend2 () {
   | _ => ()
@@ -138,7 +138,7 @@ let x = [%extend1
   | Some(1) => ()
 ];
 
-/* With two extensions, first in sequence */
+// With two extensions, first in sequence 
 let x = {
   %extend1
   try%extend2 () {
@@ -196,7 +196,7 @@ let x = {
   | Some(1) => ();
 };
 
-/* With two extensions, in sequence */
+// With two extensions, in sequence 
 let x = {
   ignore();
   %extend1
@@ -256,7 +256,7 @@ let x = {
   ignore();
 };
 
-/* With two extensions, second in sequence */
+// With two extensions, second in sequence 
 let x = {
   ignore();
   %extend1

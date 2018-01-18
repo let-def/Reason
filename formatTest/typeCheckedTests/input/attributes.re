@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-present, Facebook, Inc. All rights reserved. */
+// Copyright (c) 2015-present, Facebook, Inc. All rights reserved. 
 /**
  * Generally, dangling attributes [@..] apply to everything to the left of it,
  * up until a comma, equals asignment, arrow, bar, or infix symbol (+/-) or
@@ -82,7 +82,7 @@ let x = ([@onTrue] true) && false;
 let x = [@attrEverything] (true && false);
 
 
-/* now make sure to try with variants (tagged and `) */
+// now make sure to try with variants (tagged and `) 
 
 /**
  * How attribute parsings respond to other syntactic constructs.
@@ -270,7 +270,7 @@ let myFun = fun (X ([@onHello] hello ) | Y ([@onHello]hello )) => hello;
 let myFun = fun ((X(hello) | Y(hello)) [@onOrPattern]) => hello;
 */
 
-/* Bucklescript FFI item attributes */
+// Bucklescript FFI item attributes 
 
 [@bs.val]
 external imul : (int, int) => int = "Math.imul";
@@ -283,14 +283,14 @@ type classAttributesOnKeys = {
   .
   [@bs.set] key1 : string,
 
-  /* The follow two are the same */
+  // The follow two are the same 
   [@bs.get {null}] key2 : [@onType2] Js.t(int),
   [@bs.get {null}] key3 : ([@onType2] (Js.t(int))),
 
   key4 : Js.t ([@justOnInt] int)
 };
 
-/* extensible variants */
+// extensible variants 
 type attr = ..;
 
 [@block]
@@ -315,14 +315,14 @@ type cloud = string;
 type water += pri | [@h2o] PreparedWater | [@nature] RainWater(cloud) | [@toxic] MeltedSnowWaterFromNuclearWastelandWithALineBreakBecauseTheNameIsSoLong;
 
 
-/* reasonreact */
+// reasonreact 
 type element;
 
 type reactElement;
 
 type reactClass;
 
-/* "react-dom" shouldn't spread the attribute over multiple lines */
+// "react-dom" shouldn't spread the attribute over multiple lines 
 [@bs.val] [@bs.module "react-dom"]
 external render : (reactElement, element) => unit = "render";
 
@@ -339,7 +339,7 @@ external add_nat: (int, int) => int = "add_nat_bytecode" "add_nat_native";
 [@bs.module "Bar"] [@ocaml.deprecated "Use bar instead. It's a much cooler function. This string needs to be a little long"]
 external foo : (bool) => bool = "";
 
-/* Attributes on an entire polymorphic variant leaf */
+// Attributes on an entire polymorphic variant leaf 
 [@bs.module "fs"]
 external readFileSync : (
   ~name: string,
@@ -357,7 +357,7 @@ external readFileSync2 : (
     [@bs.as "ascii"] | `my_name
   ]) => string = "";
 
-/* Ensure that attributes on extensions are printed */
+// Ensure that attributes on extensions are printed 
 [@test [@attr] [%%extension]];
 
 external debounce : (int, [@bs.meth] unit) => unit = "";
@@ -394,7 +394,7 @@ let res = switch (x) {
   }
 };
 
-/* GADT */
+// GADT 
 type value =
 | [@foo] VBool'(bool): [@bar] value
 | VInt'(int): value;

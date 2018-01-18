@@ -176,7 +176,7 @@ let notReallyJSX = (~foo, ~bar, children) => {
 let fakeRender = (el: component) =>
   el.displayName;
 
-/* end of setup */
+// end of setup 
 let (/><) = (a, b) => a + b;
 
 let (><) = (a, b) => a + b;
@@ -347,10 +347,10 @@ let tagOne = (~children, ()) => ();
 
 let tagTwo = (~children, ()) => ();
 
-/* thisIsWrong <tagOne /><tagTwo />; */
+// thisIsWrong <tagOne /><tagTwo />; 
 thisIsRight(<tagOne />, <tagTwo />);
 
-/* thisIsWrong <tagOne> </tagOne><tagTwo> </tagTwo>; */
+// thisIsWrong <tagOne> </tagOne><tagTwo> </tagTwo>; 
 thisIsRight(<tagOne />, <tagTwo />);
 
 let a = (~children, ()) => ();
@@ -451,7 +451,7 @@ let span =
 let asd =
   [@foo] <span test=true foo=2> "a" "b" </span>;
 
-/* "video" call doesn't end with a list, so the expression isn't converted to JSX */
+// "video" call doesn't end with a list, so the expression isn't converted to JSX 
 let video = (~test: bool, children) => children;
 
 let asd2 = [@foo] [@JSX] video(~test=false, 10);
@@ -519,14 +519,14 @@ let myFun = () =>
 /**
  * Failing test cases:
  */
-/* let res = <Foo a=10 b=(<Foo a=200 />) > */
-/*   <Bar /> */
-/* </Foo>; */
-/* let res = <Foo a=10 b=(<Foo a=200 />) />; */
+// let res = <Foo a=10 b=(<Foo a=200 />) > 
+//   <Bar /> 
+// </Foo>; 
+// let res = <Foo a=10 b=(<Foo a=200 />) />; 
 let zzz =
   Some("oh hai");
 
-/* this should be the only test that generates a warning. We're explicitly testing for this */
+// this should be the only test that generates a warning. We're explicitly testing for this 
 let optionalCallSite =
   <Optional1 required=?zzz />;
 
@@ -561,12 +561,12 @@ fakeRender(defaultArg);
 
 ([@bla] [@JSX] notReallyJSX(~foo=1, [], ~bar=2));
 
-/* children can be at any position */
+// children can be at any position 
 <span test=true foo=2 />;
 
 <Optional1 required=(Some("hi")) />;
 
-/* preserve some other attributes too! */
+// preserve some other attributes too! 
 ([@bla] <span test=true foo=2 />);
 
 ([@bla] <span test=true foo=2 />);
@@ -575,7 +575,7 @@ fakeRender(defaultArg);
 
 ([@bla] <Optional1 required=(Some("hi")) />);
 
-/* Overeager JSX punning #1099 */
+// Overeager JSX punning #1099 
 module Metal = {
   let fiber = "fiber";
 };
@@ -619,7 +619,7 @@ let foo = None;
 
 let g = <Two ?foo />;
 
-/* https://github.com/facebook/reason/issues/1428 */
+// https://github.com/facebook/reason/issues/1428 
 <Foo> ...element </Foo>;
 
 <Foo> ...(a => 1) </Foo>;

@@ -1,5 +1,5 @@
 
-/* Extension sugar */
+// Extension sugar 
 
 %extend
 open M;
@@ -65,7 +65,7 @@ let x = {
   }
 };
 
-/* At structure level */
+// At structure level 
 
 try%extend () { | _ => () };
 
@@ -83,7 +83,7 @@ fun%extend
  | None => ()
  | Some(1) => ();
 
- /* In a top-level binding */
+ // In a top-level binding 
 
 let x = try%extend () { | _ => () };
 
@@ -101,7 +101,7 @@ let x = fun%extend
   | None => ()
   | Some(1) => ();
 
- /* With two extensions, alone */
+ // With two extensions, alone 
 
 let x = { 
   %extend1
@@ -140,61 +140,9 @@ let x = {
     | Some(1) => ();
 };
 
- /* With two extensions, first in sequence */
+ // With two extensions, first in sequence 
 
 let x = { 
-  %extend1
-  try%extend2 () { | _ => () };
-  ignore();
-};
-
-let x = {
-  ignore();
-  %extend1
-  switch%extend2 () { | _ => () };
-  ignore();
-};
-
-let x = {
-  ignore();
-  %extend1
-  if%extend2 (true) { 1 } else { 2 };
-  ignore();
-};
-
-let x = {
-  ignore();
-  %extend1
-  for%extend2 (i in 1 to 10) { () };
-  ignore();
-};
-
-let x = {
-  ignore();
-  %extend1
-  while%extend2 (false) { () };
-  ignore();
-};
-
-let x = {
-  ignore();
-  %extend1
-  fun%extend2 () => ();
-  ignore();
-};
-
-let x = {
-  ignore();
-  %extend1
-  fun%extend2
-    | None => ()
-    | Some(1) => ();
-};
-
- /* With two extensions, in sequence */
-
-let x = { 
-  ignore();
   %extend1
   try%extend2 () { | _ => () };
   ignore();
@@ -241,10 +189,62 @@ let x = {
   fun%extend2
     | None => ()
     | Some(1) => ();
+};
+
+ // With two extensions, in sequence 
+
+let x = { 
+  ignore();
+  %extend1
+  try%extend2 () { | _ => () };
   ignore();
 };
 
- /* With two extensions, second in sequence */
+let x = {
+  ignore();
+  %extend1
+  switch%extend2 () { | _ => () };
+  ignore();
+};
+
+let x = {
+  ignore();
+  %extend1
+  if%extend2 (true) { 1 } else { 2 };
+  ignore();
+};
+
+let x = {
+  ignore();
+  %extend1
+  for%extend2 (i in 1 to 10) { () };
+  ignore();
+};
+
+let x = {
+  ignore();
+  %extend1
+  while%extend2 (false) { () };
+  ignore();
+};
+
+let x = {
+  ignore();
+  %extend1
+  fun%extend2 () => ();
+  ignore();
+};
+
+let x = {
+  ignore();
+  %extend1
+  fun%extend2
+    | None => ()
+    | Some(1) => ();
+  ignore();
+};
+
+ // With two extensions, second in sequence 
 
 let x = { 
   ignore();

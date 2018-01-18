@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-present, Facebook, Inc. All rights reserved. */
+// Copyright (c) 2015-present, Facebook, Inc. All rights reserved. 
 
 let x1 = () => 1;
 let x2 = (a) => 1;
@@ -64,14 +64,14 @@ module type HasDestructivelySubstitutedPolyType =
   HasPolyType with type t('a) := list('a);
 
 module type HasDestructivelySubstitutedSubPolyModule = {
-  /* Cannot perform destructive substitution on submodules! */
-  /* module X: HasPolyType with type t := list (int, int); */
+  // Cannot perform destructive substitution on submodules! 
+  // module X: HasPolyType with type t := list (int, int); 
   module X: HasDestructivelySubstitutedPolyType;
 };
 
 module type HasSubPolyModule = {
-  /* Cannot perform destructive substitution on submodules! */
-  /* module X: HasPolyType with type t := list (int, int); */
+  // Cannot perform destructive substitution on submodules! 
+  // module X: HasPolyType with type t := list (int, int); 
   module X: HasPolyType;
 };
 

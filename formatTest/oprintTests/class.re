@@ -1,5 +1,5 @@
 class aClass1(x) {
-  /* one value parameter x */
+  // one value parameter x 
   pub a1 = 0;
   pub a2() = 0;
   pub a3(x,y) = x + y;

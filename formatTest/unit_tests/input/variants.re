@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-present, Facebook, Inc. All rights reserved. */
+// Copyright (c) 2015-present, Facebook, Inc. All rights reserved. 
 
 module LocalModule = {
   type accessedThroughModule = | AccessedThroughModule;
@@ -18,23 +18,23 @@ let intTuple = (20, 20);
 
 let notTupled: notTupleVariant = NotActuallyATuple(10,10);
 
-/* Doesn't work because we've correctly annotated parse tree nodes with explicit_arity! */
-/* let notTupled: notTupleVariant = NotActuallyATuple (10, 10); */
+// Doesn't work because we've correctly annotated parse tree nodes with explicit_arity! 
+// let notTupled: notTupleVariant = NotActuallyATuple (10, 10); 
 let funcOnNotActuallyATuple (NotActuallyATuple(x,y)) = x + y;
 
-/* let funcOnNotActuallyATuple (NotActuallyATuple (x, y)) = x + y; */
-/* let notTupled: notTupleVariant = NotActuallyATuple intTuple; /*Doesn't work! */ */
+// let funcOnNotActuallyATuple (NotActuallyATuple (x, y)) = x + y; 
+// let notTupled: notTupleVariant = NotActuallyATuple intTuple; /*Doesn't work! */ 
 /* At least the above acts as proof that there *is* a distinction that is
 honored. */
 let simpleTupled: simpleTupleVariant = SimpleActuallyATuple (10, 10);
 
 let simpleTupled: simpleTupleVariant = SimpleActuallyATuple (intTuple);
 
-/*Works! */
+//Works! 
 let NotActuallyATuple(x,y) = NotActuallyATuple (10, 20);
 
-/* Doesn't work because we've correctly annotated parse tree nodes with explicit_arity! */
-/* let unfortunatelyThisStillWorks: simpleTupleVariant = SimpleActuallyATuple 10 10; */
+// Doesn't work because we've correctly annotated parse tree nodes with explicit_arity! 
+// let unfortunatelyThisStillWorks: simpleTupleVariant = SimpleActuallyATuple 10 10; 
 let yesTupled: tupleVariant = ActuallyATuple (10, 10);
 
 let yesTupled: tupleVariant = ActuallyATuple (10, 10);
@@ -74,13 +74,13 @@ type colorList = [<
 
 1 + doesntCareWhichForm(FormThree);
 
-/* Destructured matching at function definition */
+// Destructured matching at function definition 
 let accessDeeply(LocalModule.AccessedThroughModule) = 10;
 
 let accessDeeplyWithArg
     (LocalModule.AccessedThroughModuleWith(x) | LocalModule.AccessedThroughModuleWithTwo(_,x)) = x;
 
-/* Destructured matching *not* at function definition */
+// Destructured matching *not* at function definition 
 let accessDeeply(x) = switch (x) {
   | LocalModule.AccessedThroughModule => 10
   | _ => 0
@@ -108,13 +108,13 @@ let accessDeeplyWithArg(x) = switch (x) {
   | LocalModule.AccessedThroughModuleWithTwo((x as retVal1),(y as retVal2)) => retVal1 + retVal2 + 1
 };
 
-/* Just to show that by default `as` captures much less aggresively */
+// Just to show that by default `as` captures much less aggresively 
 let rec accessDeeplyWithArgRecursive(x,count) = switch (x) {
   | LocalModule.AccessedThroughModuleWith(x) as entirePattern =>
-      /* It captures the whole pattern */
+      // It captures the whole pattern 
       if (count > 0) {0;} else {accessDeeplyWithArgRecursive(entirePattern, count - 1);}
   | LocalModule.AccessedThroughModuleWithTwo(x,y) as entirePattern =>
-      /* It captures the whole pattern */
+      // It captures the whole pattern 
       if (count > 0) {0;} else {accessDeeplyWithArgRecursive(entirePattern, count - 1);}
 };
 
@@ -128,10 +128,10 @@ let run () {
 type combination('a) = | HeresTwoConstructorArguments(int,int);
 
 /** But then how do we parse matches in function arguments? */
-/* We must require parenthesis around construction matching in function args only*/
+// We must require parenthesis around construction matching in function args only
 let howWouldWeMatchFunctionArgs (HeresTwoConstructorArguments(x,y)) = x + y;
 
-/* How would we annotate said arg? */
+// How would we annotate said arg? 
 let howWouldWeMatchFunctionArgs (HeresTwoConstructorArguments(x,y): combination('wat)) = x + y;
 
 let matchingTwoCurriedConstructorsInTuple(x) = switch (x) {
@@ -146,7 +146,7 @@ let matchingTwoCurriedConstructorInConstructor(x) = switch (x) {
 
 type twoCurriedConstructorsPolyMorphic('a) = | TwoCombos (combination('a), combination('a));
 
-/* Matching records */
+// Matching records 
 type pointRecord = {x: int, y: int};
 
 type alsoHasARecord = | Blah | AlsoHasARecord(int,int,pointRecord);
@@ -157,7 +157,7 @@ let result = switch (AlsoHasARecord(10,10,{x: 10, y: 20})) {
 };
 
 let rec commentPolymorphicCases: 'a . (option('a)) => int = fun | Some(a) => 1
-                                                                /* Comment on one */
+                                                                // Comment on one 
                                                                 | None => 0;
 
 let thisWontCompileButLetsSeeHowItFormats = switch (something) {
@@ -169,7 +169,7 @@ let thisWontCompileButLetsSeeHowItFormats = fun | Zero
                                                 | One(_,_,_) => 10
                                                 | Two => 20;
 
-/* Comment on two */
+// Comment on two 
 /**
  * GADTs.
  */
@@ -178,21 +178,21 @@ type term(_) =
 
 let rec eval: type a. (term(a)) => a =
   fun | Int(n) => n
-      /* a = int */
+      // a = int 
       | Add => (fun(x,y) => x + y)
-      /* a = int => int => int */
+      // a = int => int => int 
       | App(f,x) => eval(f, eval(x));
 
 let rec eval: type a. (term(a)) => a =
   (x) => switch (x) {
     | Int(n) => n
-    /* a = int */
+    // a = int 
     | Add => (fun(x,y) => x + y)
-    /* a = int => int => int */
+    // a = int => int => int 
     | App(f,x) => eval(f, eval(x))
   };
 
-/* eval called at types (b=>a) and b for fresh b */
+// eval called at types (b=>a) and b for fresh b 
 let evalArg = App (App (Add, Int(1)), Int(1));
 
 let two = eval (App (App(Add, Int(1)), Int(1)));
@@ -221,7 +221,7 @@ let res = switch (myTuple) {
            }
 };
 
-/* FIXME type somePolyVariant = [ `Purple int | `Yellow int]; */
+// FIXME type somePolyVariant = [ `Purple int | `Yellow int]; 
 
 let ylw = `Yellow (100, 100);
 
@@ -328,14 +328,14 @@ let listPatternMembersNeedntBeSimple(x) = switch (x) {
 
 let listTailPatternNeedntBeSimple(x) = switch (x) {
   | [] => ()
-  /* Although this would never typecheck! */
+  // Although this would never typecheck! 
   | [Blah(x,y), Foo(a,b), ...Something(x)] => ()
   | _ => ()
 };
 
 let listPatternMayEvenIncludeAliases(x) = switch (x) {
   | [] => ()
-  /* Although this would never typecheck! */
+  // Although this would never typecheck! 
   | [Blah(x,y) as head, Foo(a,b) as head2, ...Something(x) as tail] => ()
   | _ => ()
 };
@@ -345,7 +345,7 @@ let listPatternMayEvenIncludeAliases(x) = switch (x) {
  */
 type attr = ..;
 
-/* `of` is optional */
+// `of` is optional 
 type attr += Str(string);
 
 type attr += | Point(int,int);
@@ -379,16 +379,16 @@ type Graph.node += pri Node = Expr.Node;
 
 type Graph.node += pri | Node = Expr.Node | Atom = Expr.Atom;
 
-/* without single unit arg sugar */
+// without single unit arg sugar 
 MyConstructorWithSingleUnitArg(());
-/* with single unit arg sugar */
+// with single unit arg sugar 
 MyConstructorWithSingleUnitArg();
-/* without single unit arg sugar */
+// without single unit arg sugar 
 `polyVariantWithSingleUnitArg(());
-/* with single unit arg sugar */
+// with single unit arg sugar 
 `polyVariantWithSingleUnitArg();
 
-/* #1510: keep ({ and }) together on the same line when breaking */
+// #1510: keep ({ and }) together on the same line when breaking 
 Delete({ uuid: json |> Util.member("uuid") |> Util.to_string });
 Delete((someLongStuf, someOtherLongStuff, okokokok));
 Delete([someLongStuf, someOtherLongStuff, okokokok]);

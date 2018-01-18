@@ -96,7 +96,14 @@ let pp_print_multiline ppf str =
   let rec loop i =
     match String.index_from str i '\n' with
     | exception Not_found ->
-      pp_print_string ppf (String.sub str i (String.length str - i))
+      pp_print_string ppf (String.sub str i (String.length str - i));
+      pp_close_box ppf ()
+    | j when j = String.length str - 1 ->
+      pp_print_string ppf (String.sub str i (j - i));
+      pp_close_box ppf ();
+      pp_open_tag ppf "optional_break";
+      pp_force_newline ppf ();
+      pp_close_tag ppf ()
     | j ->
       pp_print_string ppf (String.sub str i (j - i));
       pp_force_newline ppf ();
@@ -105,7 +112,6 @@ let pp_print_multiline ppf str =
   if String.contains str '\n' then (
     pp_open_vbox ppf 0;
     loop 0;
-    pp_close_box ppf ()
   ) else
     pp_print_string ppf str
 

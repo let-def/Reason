@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-present, Facebook, Inc. All rights reserved. */
+// Copyright (c) 2015-present, Facebook, Inc. All rights reserved. 
 
 /* - A good way to test if formatting of infix operators groups precedences
    correctly, is to write an expression twice. Once in a form where parenthesis
@@ -9,14 +9,14 @@
    - Our formatting algorithm *could* decide to leave equivalently precedented
    infix applications ungrouped in parenthesis (which is what the above test
    verifies), but the additional parenthesis is nice.  */
-/* < > = all have same precedence level/direction(left) */
+// < > = all have same precedence level/direction(left) 
 let parseTree = ((x > y > z) < a < b) == c == d;
 
 let minParens = ((x > y > z) < a < b) == c == d;
 
 let formatted = ((x > y > z) < a < b) == c == d;
 
-/* Case with === */
+// Case with === 
 
 let parseTree = ((x > y > z) < a < b) === c === d;
 
@@ -24,14 +24,14 @@ let minParens = ((x > y > z) < a < b) === c === d;
 
 let formatted = ((x > y > z) < a < b) === c === d;
 
-/* < > = all have same precedence level and direction (left) */
+// < > = all have same precedence level and direction (left) 
 let parseTree = a1 < a2 < (b1 > b2 > (y == x == z));
 
 let minParens = a1 < a2 < (b1 > b2 > (y == x == z));
 
 let formatted = a1 < a2 < (b1 > b2 > (y == x == z));
 
-/* Case with === */
+// Case with === 
 
 let parseTree = a1 < a2 < (b1 > b2 > (y === x === z));
 
@@ -39,14 +39,14 @@ let minParens = a1 < a2 < (b1 > b2 > (y === x === z));
 
 let formatted = a1 < a2 < (b1 > b2 > (y === x === z));
 
-/* !=...(left) same level =(left) is higher than :=(right) */
+// !=...(left) same level =(left) is higher than :=(right) 
 let parseTree = a1 := a2 := b1 == b2 == (y != x != z);
 
 let minParens = a1 := a2 := b1 == b2 == (y != x != z);
 
 let formatted = a1 := a2 := b1 == b2 == (y != x != z);
 
-/* Case with === */
+// Case with === 
 
 let parseTree = a1 := a2 := b1 === b2 === (y !== x !== z);
 
@@ -54,14 +54,14 @@ let minParens = a1 := a2 := b1 === b2 === (y !== x !== z);
 
 let formatted = a1 := a2 := b1 === b2 === (y !== x !== z);
 
-/* !=...(left) same level =(left) is higher than :=(right) */
+// !=...(left) same level =(left) is higher than :=(right) 
 let parseTree = a1 := a2 := b1 == ((b2 == y) != x != z);
 
 let minParens = a1 := a2 := b1 == ((b2 == y) != x != z);
 
 let formatted = a1 := a2 := b1 == ((b2 == y) != x != z);
 
-/* Case with === */
+// Case with === 
 
 let parseTree = a1 := a2 := b1 === ((b2 === y) !== x !== z);
 
@@ -69,7 +69,7 @@ let minParens = a1 := a2 := b1 === ((b2 === y) !== x !== z);
 
 let formatted = a1 := a2 := b1 === ((b2 === y) !== x !== z);
 
-/* &...(left) is higher than &(right). &(right) is equal to &&(right) */
+// &...(left) is higher than &(right). &(right) is equal to &&(right) 
 let parseTree = a1 && (a2 && (b1 & b2 & y &|| x &|| z));
 
 let minParens = a1 && a2 && (b1 & b2 & y &|| x &|| z);
@@ -80,14 +80,14 @@ let formatted = a1 && a2 && (b1 & b2 & y &|| x &|| z);
  * Now, let's try an example that resembles the above, yet would require
  * parenthesis everywhere.
  */
-/* &...(left) is higher than &(right). &(right) is equal to &&(right) */
+// &...(left) is higher than &(right). &(right) is equal to &&(right) 
 let parseTree = ((((a1 && a2) && b1) & b2) & y) &|| (x &|| z);
 
 let minParens = ((((a1 && a2) && b1) & b2) & y) &|| (x &|| z);
 
 let formatted = ((((a1 && a2) && b1) & b2) & y) &|| (x &|| z);
 
-/* **...(right) is higher than *...(left) */
+// **...(right) is higher than *...(left) 
 let parseTree = ((b1 *| b2) *| (y *\*| (x *\*| z)));
 
 let minParens = b1 *| b2 *| y *\*| x *\*| z;
@@ -95,7 +95,7 @@ let minParens = b1 *| b2 *| y *\*| x *\*| z;
 let formatted = b1 *| b2 *| y *\*| x *\*| z;
 
 
-/* **...(right) is higher than *...(left) */
+// **...(right) is higher than *...(left) 
 let parseTree = ((b1 *| b2) *| (y *\*| ((x *\*| z) *| a)));
 
 let minParens = b1 *| b2 *| y *\*| (x *\*| z *| a);
@@ -103,36 +103,36 @@ let minParens = b1 *| b2 *| y *\*| (x *\*| z *| a);
 let formatted = b1 *| b2 *| y *\*| (x *\*| z *| a);
 
 
-/* |...(left) is higher than ||(right) */
-/* All parens should be removed when formatting n > 0 times */
+// |...(left) is higher than ||(right) 
+// All parens should be removed when formatting n > 0 times 
 let parseTree = b1 || b2 || y |\* x |\* z;
 
 let minParens = b1 || b2 || y |\* x |\* z;
 
 let formatted = b1 || b2 || y |\* x |\* z;
 
-/* Associativity effects how parenthesis should be dropped */
-/* This one *shouldn't* expand into two consecutive infix + */
+// Associativity effects how parenthesis should be dropped 
+// This one *shouldn't* expand into two consecutive infix + 
 first + (second + third);
 
-/* This one *should* */
+// This one *should* 
 first + second + third;
 
 /* But that's just because + is left associative. Since & is right associative,
  * it's the opposite. */
-/* This one *should* expand into two consecutive infix * */
+// This one *should* expand into two consecutive infix * 
 first & second & third;
 
-/* This one *shouldn't* */
+// This one *shouldn't* 
 (first & second) & third;
 
-/* || is basically the same as &/&& */
+// || is basically the same as &/&& 
 first || second || third;
 
-/* This one *shouldn't* */
+// This one *shouldn't* 
 (first || second) || third;
 
-/* No parens should be added/removed from the following when formatting */
+// No parens should be added/removed from the following when formatting 
 let seeWhichCharacterHasHigherPrecedence = (first |> second |> third) ^> fourth;
 
 let seeWhichCharacterHasHigherPrecedence = first |> second |> third;
@@ -141,7 +141,7 @@ let seeWhichCharacterHasHigherPrecedence = first + second + third;
 
 let comparison = (==);
 
-/* Why would the following two cases have different grouping? */
+// Why would the following two cases have different grouping? 
 let res = blah || DataConstructor(10) || DataConstructor(10) && 10;
 
 let res = blah && DataConstructor(10) && DataConstructor(10) + 10;
@@ -160,7 +160,7 @@ let greaterThanAndFunctionCalls = pred(1) > pred(2);
 
 let lessThanAndFunctionCalls = pred(1) < pred(2);
 
-/* This doesn't type check because it looks like pred - 1 */
+// This doesn't type check because it looks like pred - 1 
 let minusAndInteger = pred - 1;
 
 let passingMinusOneToFunction = pred (-1);
@@ -169,36 +169,36 @@ let leadingMinusIsCorrectlyNeg = (-1) + 20;
 
 let leadingMinusIsCorrectlyNeg = 3 > (-1);
 
-/* Custom infix without labeled args */
+// Custom infix without labeled args 
 let (|>)(first,second) = first + second;
 
-/* Should reformat to actually be placed infix */
+// Should reformat to actually be placed infix 
 let res = first |> second;
 
-/* Curried shouldn't place infix */
+// Curried shouldn't place infix 
 let res = (|>)(first);
 
-/* Custom infix with labeled args */
+// Custom infix with labeled args 
 let (|>)(~first as first, ~second as second) = first + second;
 
-/* Should NOT reformat named args to actually be placed infix */
+// Should NOT reformat named args to actually be placed infix 
 let res = (|>)(~first=first, ~second=second);
 
-/* Curried shouldn't place infix */
+// Curried shouldn't place infix 
 let res = (|>)(~first=first);
 
-/* Custom infix accepting *three* without labeled args */
+// Custom infix accepting *three* without labeled args 
 let (|>)(firsfirst,second,third) = first + second + third;
 
-/* Should reformat to actually be placed infix if passed two args */
+// Should reformat to actually be placed infix if passed two args 
 let res = first |> second;
 
 let res = (first |> second)(third);
 
-/* Should NOT reformat to be placed infix if passed all three */
+// Should NOT reformat to be placed infix if passed all three 
 let res = (|>)(first,second,third);
 
-/* Same: Curried shouldn't place infix */
+// Same: Curried shouldn't place infix 
 let res = (|>)(first);
 
 /* In fact, if even just one of the arguments are named, it shouldn't
@@ -211,14 +211,14 @@ let res = (|>)(first);
 
 (first |> second)(~third=third);
 
-/* Infix has lower precedence than function application */
+// Infix has lower precedence than function application 
 first |> second(~third=third);
 
 let leftAssocGrouping = first |> second |> third;
 
 let rightAssocGrouping = first ^> second ^> third;
 
-/* It's definitely the caret. */
+// It's definitely the caret. 
 let seeWhichCharacterHasHigherPrecedence = first |> second ^> third;
 
 let seeWhichCharacterHasHigherPrecedence = first ^> second |> third;
@@ -227,7 +227,7 @@ let seeWhichCharacterHasHigherPrecedence = first ^> (second |> third) |> fourth;
 
 let res = blah && DataConstructor(10) && DataConstructor(10) + 10;
 
-/* Should be parsed as */
+// Should be parsed as 
 let res = blah && DataConstructor(10) && DataConstructor(10) + 10;
 
 let (++)(~label as label,~label2 as label2) = label + label2;
@@ -240,10 +240,10 @@ let (++): int = int = (++);
 
 (++)(~label=20, ~label2=30) + 40;
 
-/* Should be parsed as: */
+// Should be parsed as: 
 (++)(~label=20, ~label2=30) + 40;
 
-/* Great idea! */
+// Great idea! 
 let (==)(a,b) = a < 0;
 
 let (==)(a,b) = a < 0;
@@ -258,7 +258,7 @@ let starInfix_makeSureSpacesSurround = ( * );
 
 let starInfix_makeSureSpacesSurround = ( *\*\* );
 
-/* The following two should be equivalently parsed/printed.  */
+// The following two should be equivalently parsed/printed.  
 let includesACommentCloseInIdentifier = ( *\*\/ );
 
 let includesACommentCloseInIdentifier = ( *\*\/ );
@@ -277,7 +277,7 @@ let shouldPreserveParens = (ident ++ ident) ++ ident;
  */
 let noParensRequired = ident + ident ++ ident;
 
-/* So in this case, it should format to whatever the previous example formats to. */
+// So in this case, it should format to whatever the previous example formats to. 
 let noParensRequired = (ident + ident) ++ ident;
 
 /**
@@ -310,7 +310,7 @@ let parensRequired = ident +$ (ident ++- ident);
 let parensRequired = (ident ++ ident) +++ ident;
 let parensRequired = (ident +++ ident) ++ ident;
 
-/* Add tests with IF/then mixed with infix/constructor application on left and right sides */
+// Add tests with IF/then mixed with infix/constructor application on left and right sides 
 /**
  * Every star or forward slash after the character of an infix operator must be
  * escaped.
@@ -348,7 +348,7 @@ let (!!)(a,b) = a + b;
 
 let res = (!!)(20,40);
 
-/* The semicolon should be attached to someType */
+// The semicolon should be attached to someType 
 let myFunc(aaaa,bbbb,cccc,dddd,aaaa,bbbb,cccc,dddd,aaaa) =
   [blah(aaaa,bbbb,cccc,dddd,aaaa,bbbb,cccc,dddd,aaaa), ...someType];
 
@@ -486,19 +486,19 @@ let containingObject = {
      *
      */
 
-    /* The following */
+    // The following 
     x + something.contents = y;
     x + something = y;
     x + something.contents := y;
     x + something := y;
 
-    /* Should be parsed as: */
-    x + (something.contents = y); /* Because of the #NotActuallyAConflict above */
-    x + (something = y); /* Same */
+    // Should be parsed as: 
+    x + (something.contents = y); // Because of the #NotActuallyAConflict above 
+    x + (something = y); // Same 
     (x + something.contents) := y;
     (x + something) := y;
 
-    /* To make the := parse differently, we must use parens */
+    // To make the := parse differently, we must use parens 
     x + (something.contents := y);
     x + (something := y);
 
@@ -573,7 +573,7 @@ let containingObject = {
     arr[0] = x.contents = 10;
     bigArr.{0} = x.contents = 10;
     str.[0] = x.contents = 10;
-    /* Should be the same as */
+    // Should be the same as 
     x.contents = (x.contents = 10);
     y = (x.contents = 10);
     arr[0] = (x.contents = 10);
@@ -586,16 +586,16 @@ let containingObject = {
      * associative.
      */
     x := x := 10;
-    /* Should be the same as */
+    // Should be the same as 
     x := (x := 10);
 
-    /* By default, without parens*/
+    // By default, without parens
     x ? y : z ? a : b;
 
-    /* It is parsed as the following: */
+    // It is parsed as the following: 
     x ? y : (z ? a : b);
 
-    /* Not this: */
+    // Not this: 
     (x ? y : z) ? a : b;
 
     /**
@@ -633,24 +633,24 @@ let containingObject = {
     bigArr.{0} := something ? bigArr.{0} := somethingElse : goodbye;
     str.[0] := something ? str.[0] := somethingElse : goodbye;
 
-    /* Should be parsed as */
+    // Should be parsed as 
     y := (something ? (y := somethingElse) : goodbye);
     arr[0] := (something ? (arr[0] := somethingElse) : goodbye);
     bigArr.{0} := (something ? (bigArr.{0} := somethingElse) : goodbye);
     str.[0] := (something ? (str.[0] := somethingElse) : goodbye);
 
 
-    /* The following */
+    // The following 
     x := something ? x.contents = somethingElse ? goodbye : goodbye : goodbye;
     x := something ? arr[0] = somethingElse ? goodbye : goodbye : goodbye;
     x := something ? bigArr.{0} = somethingElse ? goodbye : goodbye : goodbye;
     x := something ? str.[0] = somethingElse ? goodbye : goodbye : goodbye;
-    /* Is parsed as */
+    // Is parsed as 
     x := (something ? x.contents = (somethingElse ? goodbye : goodbye) : goodbye);
     x := (something ? arr[0] = (somethingElse ? goodbye : goodbye) : goodbye);
     x := (something ? bigArr.{0} = (somethingElse ? goodbye : goodbye) : goodbye);
     x := (something ? str.[0] = (somethingElse ? goodbye : goodbye) : goodbye);
-    /* is not the same as */
+    // is not the same as 
     x := something ? (x.contents = somethingElse) ? goodbye : goodbye : goodbye;
     x := something ? (arr[0] = somethingElse) ? goodbye : goodbye : goodbye;
     x := something ? (bigArr.{0} = somethingElse) ? goodbye : goodbye : goodbye;
@@ -663,42 +663,42 @@ let containingObject = {
     /** These should be parsed the same */
     something ? somethingElse : x.contents = somethingElse ? x : z;
     something ? somethingElse : (x.contents = (somethingElse ? x : z));
-    /* Not: */
+    // Not: 
     something ? somethingElse : (x.contents = somethingElse) ? x : z;
     (something ? somethingElse : (x.contents = somethingElse)) ? x : z;
 
-    /* These should be parsed the same */
+    // These should be parsed the same 
     something ? somethingElse : x := somethingElse ? x : z;
     something ? somethingElse : (x := (somethingElse ? x : z));
-    /* Not: */
+    // Not: 
     something ? somethingElse : (x := somethingElse) ? x : z;
     (something ? somethingElse : (x := somethingElse)) ? x : z;
 
     /** These should be parsed the same */
     something ? somethingElse : y = somethingElse ? x : z;
     something ? somethingElse : (y = (somethingElse ? x : z));
-    /* Not: */
+    // Not: 
     something ? somethingElse : (y = somethingElse) ? x : z;
     (something ? somethingElse : (y = somethingElse)) ? x : z;
 
     /** These should be parsed the same */
     something ? somethingElse : arr[0] = somethingElse ? x : arr[0];
     something ? somethingElse : (arr[0] = (somethingElse ? x : arr[0]));
-    /* Not: */
+    // Not: 
     something ? somethingElse : (arr[0] = somethingElse) ? x : z;
     (something ? somethingElse : (arr[0] = somethingElse)) ? x : z;
 
     /** These should be parsed the same */
     something ? somethingElse : bigArr.{0} = somethingElse ? x : bigArr.{0};
     something ? somethingElse : (bigArr.{0} = (somethingElse ? x : bigArr.{0}));
-    /* Not: */
+    // Not: 
     something ? somethingElse : (bigArr.{0} = somethingElse) ? x : z;
     (something ? somethingElse : (bigArr.{0} = somethingElse)) ? x : z;
 
     /** These should be parsed the same */
     something ? somethingElse : arr.[0] = somethingElse ? x : arr.[0];
     something ? somethingElse : (arr.[0] = (somethingElse ? x : arr.[0]));
-    /* Not: */
+    // Not: 
     something ? somethingElse : (str.[0] = somethingElse) ? x : z;
     (something ? somethingElse : (str.[0] = somethingElse)) ? x : z;
 
@@ -715,7 +715,7 @@ let containingObject = {
      * Various precedence groupings.
      */
     true ? true ? false : false : false;
-    /* Is the same as */
+    // Is the same as 
     true ? (true ? false : false) : false;
     /*
      * Just some examples of how prefix will be printed.
@@ -732,34 +732,34 @@ let containingObject = {
     bigArr.{0} || - something + 1 ? hello : goodbye;
     let result = - x + something.contents = y;
 
-    /* Prefix minus is actually sugar for regular function identifier ~-*/
+    // Prefix minus is actually sugar for regular function identifier ~-
     let result = 2 + (~-) (add(4,0));
-    /* Same as */
+    // Same as 
     let result = 2 + ~- add(4,0);
-    /* Same as */
+    // Same as 
     let result = 2 + - add(4,0);
 
-    /* That same example but with ppx attributes on the add application */
+    // That same example but with ppx attributes on the add application 
     let result = 2 + (~-) ([@ppx] add(4,0));
-    /* Same as */
+    // Same as 
     let result = [@ppx] 2 + ~- add(4,0);
-    /* Same as */
+    // Same as 
     let result = [@ppx] 2 + - add(4,0);
 
 
-    /* Multiple nested prefixes */
+    // Multiple nested prefixes 
     let result = 2 + - - - add(4,0);
 
-    /* And with attributes */
+    // And with attributes 
     let result = [@onAddApplication] 2 + - - - add(4,0);
 
 
     /**
      * TODO: Move all of these test cases to attributes.re.
      */
-    /* Attribute on the prefix application */
+    // Attribute on the prefix application 
     let res = [@attr] (- something(blah,blah));
-    /* Attribute on the regular function application, not prefix */
+    // Attribute on the regular function application, not prefix 
     let res = [@attr] - something(blah,blah);
     let attrOnPrefix = [@ppxOnPrefixApp] (- 1);
     let attrOnPrefix = 5 + - 1;
@@ -771,7 +771,7 @@ let containingObject = {
      * And unary plus has same precedence as unary minus.
      */
     let res = - !record;
-    /* Should be parsed as: */
+    // Should be parsed as: 
     let res = - (! record);
     /* Although that precedence ranking doesn't likely have any effect in that
      * case. */
@@ -779,14 +779,14 @@ let containingObject = {
      * And this
      */
     let res = - + callThisFunc ();
-    /* should be parsed as: */
+    // should be parsed as: 
     let res = - + callThisFunc ();
 
     /**
      * And this
      */
     let res = ! (- callThisFunc ());
-    /* Should be parsed (and should remain printed as: */
+    // Should be parsed (and should remain printed as: 
     let res = ! (- callThisFunc ());
 
 
@@ -870,7 +870,7 @@ if (List.length(files)
   ()
 };
 
-/* Don't clash with jsx edge cases */
+// Don't clash with jsx edge cases 
 let (=<) = (a, b) => a + b;
 let result = x =< y;
 let z = x =<
@@ -899,7 +899,7 @@ let z = x =</>
 
 b;
 
-/* #1676: Exponentiation should be right-associative */
+// #1676: Exponentiation should be right-associative 
 let foo = (100. /. 2.) ** 2. +. (200. /. 2.) ** 2.;
 let foo = 100. /. 2. ** 2. +. 200. /. 2. ** 2.;
 

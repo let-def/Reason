@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-present, Facebook, Inc. All rights reserved. */
+// Copyright (c) 2015-present, Facebook, Inc. All rights reserved. 
 
 class virtual stack('a)(init) {
   /*
@@ -39,15 +39,15 @@ let tmp = {
  */
 [@thisShouldntBeFormattedAway]
 class virtual stackWithAttributes('a)(init)
-/* Before class */
+// Before class 
 {
 
-  /* The "as this" should not be formatted away because attributes. */
+  // The "as this" should not be formatted away because attributes. 
 
   as [@thisShouldntBeFormattedAway] this;
-  /* Before floatting attribute */
+  // Before floatting attribute 
   [@floatingAttribute];
-  /* Virtual member */
+  // Virtual member 
   [@itemAttr1]
   val virtual dummy : unit;
   [@itemAttr2]
@@ -174,7 +174,7 @@ let res = acceptsClosedAnonObjAsArg {
   pub y = 10;
 };
 
-/* TODO: Unify class constructor return values with function return values */
+// TODO: Unify class constructor return values with function return values 
 class myClassWithAnnotatedReturnType(init) : {pub x : int; pub y : int} {
   pub x = ( init : int );
   pub y = init;
@@ -329,5 +329,5 @@ module Js = {
   type t('a);
 };
 
-/* supports trailing comma */
+// supports trailing comma 
 type stream('a) = {. "observer": ('a => unit) => unit,};

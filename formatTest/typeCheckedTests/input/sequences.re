@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-present, Facebook, Inc. All rights reserved. */
+// Copyright (c) 2015-present, Facebook, Inc. All rights reserved. 
 
 /**
  * Testing Sequences.
@@ -9,7 +9,7 @@ let result = {
   result;
 };
 
-/* Final semicolon is not required */
+// Final semicolon is not required 
 let result = {
   let twenty = result;
   twenty
@@ -62,7 +62,7 @@ type recordType = {a: int, b: int, c: int};
 let a = 0;
 let b = 0;
 let c = 0;
-/* All of these will be printed as punned because they have more than one field. */
+// All of these will be printed as punned because they have more than one field. 
 let firstFieldPunned = {
   a: a,
   b,
