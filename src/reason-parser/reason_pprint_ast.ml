@@ -134,6 +134,8 @@ type infixChain =
   | InfixToken of string
   | Layout of Layout.t
 
+(* Helpers for dealing with extension nodes (%expr) *)
+
 let expression_extension_sugar x =
   if x.pexp_attributes <> [] then None
   else match x.pexp_desc with
@@ -431,12 +433,11 @@ let requireIndentFor = [updateToken; ":="]
 
 let namedArgSym = "~"
 
-
 let getPrintableUnaryIdent s =
-  if List.mem s unary_minus_prefix_symbols || List.mem s unary_plus_prefix_symbols then
-    String.sub s 1 (String.length s -1)
+  if List.mem s unary_minus_prefix_symbols ||
+     List.mem s unary_plus_prefix_symbols
+  then String.sub s 1 (String.length s -1)
   else s
-
 
 (* determines if the string is an infix string.
    checks backwards, first allowing a renaming postfix ("_102") which
