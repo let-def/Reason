@@ -158,3 +158,72 @@ let dump_easy ppf easy =
   in
   traverse "" easy
 
+let list_param ~indent_body = {
+  Easy_format.space_after_opening = false;
+  space_after_separator = false;
+  space_before_separator = false;
+  separators_stick_left = true;
+  space_before_closing = false;
+  stick_to_label = true;
+  align_closing = true;
+  wrap_body = `No_breaks;
+  indent_body;
+  list_style = Some "list";
+  opening_style = None;
+  body_style = None;
+  separator_style = None;
+  closing_style = None;
+}
+
+let easy_list_param_of_listConfig
+    { break; indent; sepLeft; preSpace; postSpace; sep;
+      wrap = (opn, cls); inline = (inlineStart, inlineEnd);
+      pad = (padOpn, padCls);
+    }
+  =
+  (opn, sep, cls, {
+    list_param with
+      wrap_body = (
+        match break with
+          | Layout.Never -> `No_breaks
+          (* Yes, `Never_wrap is a horrible name - really means "if needed". *)
+          | Layout.IfNeed -> `Never_wrap
+          | Layout.Always -> `Force_breaks
+          | Layout.Always_rec -> `Force_breaks_rec
+      );
+      indent_body = indent;
+      space_after_separator = postSpace;
+      space_before_separator = preSpace;
+      space_after_opening = padOpn;
+      space_before_closing = padCls;
+      stick_to_label = inlineStart;
+      align_closing = not inlineEnd;
+  })
+
+let to_easy_format ?comments layout =
+  let rec traverse = function
+    | Sequence (listConfig, subLayouts) ->
+      easyListWithConfig listConfig (List.map traverse subLayouts)
+    | Label (labelFormatter, left, right) ->
+      labelFormatter (traverse left) (traverse right)
+    | SourceMap (_, subLayout) ->
+      traverse subLayout
+    | WithEOLComment (_, sub) ->
+      traverse sub
+    | Easy e -> e
+  in
+  (* print_layout layout; *)
+  match comments with
+  | None -> traverse layout
+  | Some comments ->
+    let (singleLineComments, nonSingleLineComments) =
+      List.partition Comment.is_single_line (List.rev comments) in
+    (* TODO: Stop generating multiple versions of the tree, and instead generate one new tree. *)
+    let layout = insertComments layout nonSingleLineComments in
+    let layout = consolidateSeparator layout in
+    let layout = insertComments layout singleLineComments in
+    let layout = insertLinesAboveItems layout in
+    let easyFormat = traverse layout in
+    (* print_easy_rec easyFormat; *)
+    makeEasyList ~break:Always_rec ~indent:0 ~inline:(true, true) [easyFormat]
+
