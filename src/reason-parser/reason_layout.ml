@@ -46,16 +46,6 @@ and listConfig = {
   (* Really means space_after_separator *)
   postSpace: bool;
   pad: bool * bool;
-  (* A function, because the system might rearrange your previous settings, and
-   * a function allows you to not be locked into some configuration that is made
-   * out of date by the formatting system (suppose it removes the separator
-   * token etc.) Having a function allows you to instruct our formatter how to
-   * extend the "freshest" notion of the list config when comments are
-   * interleaved. *)
-  listConfigIfCommentsInterleaved: (listConfig -> listConfig) option;
-
-  (* Formatting to use if an item in a list had an end-of-line comment appended *)
-  listConfigIfEolCommentsInterleaved: (listConfig -> listConfig) option;
 }
 
 and easyFormatLabelFormatter = Easy_format.t -> Easy_format.t -> Easy_format.t
@@ -272,8 +262,6 @@ struct
       ?(newlinesAboveItems=0)
       ?(newlinesAboveComments=0)
       ?(newlinesAboveDocComments=0)
-      ?listConfigIfCommentsInterleaved
-      ?listConfigIfEolCommentsInterleaved
       ?(renderFinalSep=false)
       ?(break=Never)
       ?(wrap=("", ""))
@@ -288,7 +276,6 @@ struct
     =
     let config = {
       newlinesAboveItems; newlinesAboveComments; newlinesAboveDocComments;
-      listConfigIfCommentsInterleaved; listConfigIfEolCommentsInterleaved;
       renderFinalSep; break; wrap; inline; sep; indent; sepLeft;
       preSpace; postSpace; pad;
     } in

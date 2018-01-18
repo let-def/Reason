@@ -616,9 +616,9 @@ let isRightAssociative ~prec = match precedenceInfo ~prec with
   | Some (Left, _) -> false
   | Some (Nonassoc, _) -> false
 
-let higherPrecedenceThan c1 c2 = match ((precedenceInfo c1), (precedenceInfo c2)) with
-  | (_, None)
-  | (None, _) ->
+let higherPrecedenceThan c1 c2 =
+  match ((precedenceInfo c1), (precedenceInfo c2)) with
+  | (_, None) | (None, _) ->
     let (str1, str2) = match (c1, c2) with
       | (Token s1, Token s2) -> ("Token " ^ s1, "Token " ^ s2)
       | (Token s1, Custom s2) -> ("Token " ^ s1, "Custom " ^ s2)
@@ -628,7 +628,6 @@ let higherPrecedenceThan c1 c2 = match ((precedenceInfo c1), (precedenceInfo c2)
     raise (NotPossible ("Cannot determine precedence of two checks " ^ str1 ^ " vs. " ^ str2))
   | (Some (_, p1), Some (_, p2)) -> p1 < p2
 
-
 let printedStringAndFixityExpr = function
   | {pexp_desc = Pexp_ident {txt=Lident l}} -> printedStringAndFixity l
   | _ -> Normal
@@ -636,24 +635,23 @@ let printedStringAndFixityExpr = function
 (* which identifiers are in fact operators needing parentheses *)
 let needs_parens txt =
   match printedStringAndFixity txt with
-    | Infix _ -> true
-    | UnaryPostfix _ -> true
-    | UnaryPlusPrefix _ -> true
-    | UnaryMinusPrefix _ -> true
-    | UnaryNotPrefix _ -> true
-    | AlmostSimplePrefix _ -> true
-    | Normal -> false
+  | Infix _ -> true
+  | UnaryPostfix _ -> true
+  | UnaryPlusPrefix _ -> true
+  | UnaryMinusPrefix _ -> true
+  | UnaryNotPrefix _ -> true
+  | AlmostSimplePrefix _ -> true
+  | Normal -> false
 
 (* some infixes need spaces around parens to avoid clashes with comment
    syntax. This isn't needed for comment syntax /* */ *)
 let needs_spaces txt =
-  txt.[0]='*' || txt.[String.length txt - 1] = '*'
+  let len = String.length txt in
+  (len > 0 && (txt.[0] = '*' || txt.[len - 1] = '*'))
 
 let rec orList = function (* only consider ((A|B)|C)*)
   | {ppat_desc = Ppat_or (p1, p2)} -> (orList p1) @ (orList p2)
   | x -> [x]
-
-type space_formatter = (unit, Format.formatter, unit) format
 
 let override = function
   | Override -> "!"
@@ -715,9 +713,6 @@ let is_single_unit_construct exprList =
     | `tuple -> true
     | _ -> false)
   | _ -> false
-
-type funcReturnStyle =
-  | ReturnValOnSameLine
 
 let detectTernary l = match l with
   | [{
@@ -783,21 +778,12 @@ type formatSettings = {
   *)
   constructorTupleImplicitArity: bool;
   space: int;
-  (* Whether or not to begin a curried function's return expression immediately
-     after the [=>] without a newline.
-  *)
-  returnStyle: funcReturnStyle;
 
   (* For curried arguments in function *definitions* only: Number of [space]s
-     to offset beyond the [let] keyword. Default 1.
-  *)
+     to offset beyond the [let] keyword. Default 1.  *)
   listsRecordsIndent: int;
 
-  (* When [funcReturnStyle] = [ReturnValOnSameLine],
-     [indentWrappedPatternArgs] is not adjustable - wrapped arguments will
-     always be aligned with the function name. *)
   indentWrappedPatternArgs: int;
-
   indentMatchCases: int;
 
   (* Amount to indent in label-like constructs such as wrapped function
@@ -871,7 +857,6 @@ type formatSettings = {
 let defaultSettings = {
   constructorTupleImplicitArity = false;
   space = 1;
-  returnStyle = ReturnValOnSameLine;
   listsRecordsIndent = 2;
   indentWrappedPatternArgs = 2;
   indentMatchCases = 2;
@@ -986,11 +971,8 @@ let makeTup l =
   makeList ~wrap:("(",")") ~sep:"," ~postSpace:true ~break:IfNeed l
 
 let ensureSingleTokenSticksToLabel x =
-  makeList
-    ~listConfigIfCommentsInterleaved: (
-      fun currentConfig -> {currentConfig with break=Always_rec; postSpace=true; indent=0; inline=(true, true)}
-    )
-    [x]
+  (* Dead code? *)
+  makeList [x]
 
 let unbreakLabelFormatter formatter =
   let newFormatter labelTerm term =
@@ -3523,7 +3505,7 @@ let printer = object(self:'self)
          returnedAppTerms =
     let allPatterns = bindingLabel::patternList in
     let partitioning = curriedFunctionFinalWrapping allPatterns in
-    let everythingButReturnVal = match settings.returnStyle with
+    let everythingButReturnVal =
         (*
          Because align_closing is set to false, you get:
 
@@ -3550,79 +3532,77 @@ let printer = object(self:'self)
          and still have the arrow stuck to the last pattern (which is usually what we
          want) (See modeTwo below).
       *)
-      | ReturnValOnSameLine -> (
-          match partitioning with
-            | None when sweet ->
-              makeList
-                ~pad:(false, true)
-                ~wrap:("", arrow)
-                ~indent:(settings.space * settings.indentWrappedPatternArgs)
-                ~postSpace:true
-                ~inline:(true, true)
-                ~break:IfNeed
-                allPatterns
-            | None ->
-                (* We want the binding label to break *with* the arguments. Again,
-                   there's no apparent way to add additional indenting for the
-                   args with this setting. *)
+      match partitioning with
+      | None when sweet ->
+        makeList
+          ~pad:(false, true)
+          ~wrap:("", arrow)
+          ~indent:(settings.space * settings.indentWrappedPatternArgs)
+          ~postSpace:true
+          ~inline:(true, true)
+          ~break:IfNeed
+          allPatterns
+      | None ->
+        (* We want the binding label to break *with* the arguments. Again,
+           there's no apparent way to add additional indenting for the
+           args with this setting. *)
 
-                (**
-                   Formats lambdas by treating the first pattern as the
-                   "bindingLabel" which is kind of strange in some cases (when
-                   you only have one arg that wraps)...
+        (**
+           Formats lambdas by treating the first pattern as the
+           "bindingLabel" which is kind of strange in some cases (when
+           you only have one arg that wraps)...
 
-                      echoTheEchoer (
-                        fun (
-                              a,
-                              p
-                            ) => (
-                          a,
-                          b
-                        )
-
-                   But it makes sense in others (where you have multiple args):
-
-                      echoTheEchoer (
-                        fun (
-                              a,
-                              p
-                            )
-                            mySecondArg
-                            myThirdArg => (
-                          a,
-                          b
-                        )
-
-                   Try any other convention for wrapping that first arg and it
-                   won't look as balanced when adding multiple args.
-
-                *)
-              makeList
-                ~pad:(true, true)
-                ~wrap:(prefixText, arrow)
-                ~indent:(settings.space * settings.indentWrappedPatternArgs)
-                ~postSpace:true
-                ~inline:(true, true)
-                ~break:IfNeed
-                allPatterns
-            | Some (attachedList, wrappedListy) ->
-                (* To get *only* the final argument to "break", while not
-                   necessarily breaking the prior arguments, we dock everything
-                   but the last item to a created label *)
-              label
-                ~space:true
-                (
-                  makeList
-                    ~pad:(true, true)
-                    ~wrap:(prefixText, arrow)
-                    ~indent:(settings.space * settings.indentWrappedPatternArgs)
-                    ~postSpace:true
-                    ~inline:(true, true)
-                    ~break:IfNeed
-                    attachedList
+              echoTheEchoer (
+                fun (
+                      a,
+                      p
+                    ) => (
+                  a,
+                  b
                 )
-                wrappedListy
-        )
+
+           But it makes sense in others (where you have multiple args):
+
+              echoTheEchoer (
+                fun (
+                      a,
+                      p
+                    )
+                    mySecondArg
+                    myThirdArg => (
+                  a,
+                  b
+                )
+
+           Try any other convention for wrapping that first arg and it
+           won't look as balanced when adding multiple args.
+
+        *)
+        makeList
+          ~pad:(true, true)
+          ~wrap:(prefixText, arrow)
+          ~indent:(settings.space * settings.indentWrappedPatternArgs)
+          ~postSpace:true
+          ~inline:(true, true)
+          ~break:IfNeed
+          allPatterns
+      | Some (attachedList, wrappedListy) ->
+        (* To get *only* the final argument to "break", while not
+           necessarily breaking the prior arguments, we dock everything
+           but the last item to a created label *)
+        label
+          ~space:true
+          (
+            makeList
+              ~pad:(true, true)
+              ~wrap:(prefixText, arrow)
+              ~indent:(settings.space * settings.indentWrappedPatternArgs)
+              ~postSpace:true
+              ~inline:(true, true)
+              ~break:IfNeed
+              attachedList
+          )
+          wrappedListy
     in
 
     let everythingButAppTerms = match attachTo with
