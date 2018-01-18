@@ -1230,6 +1230,9 @@ let insertLinesAboveItems = preOrderWalk (function
 let attachEOLComment layout txt =
   Layout.WithEOLComment (txt, layout)
 
+let format_comment comment =
+  atom ~loc:comment.Comment.location (Comment.wrap comment)
+
 (** prependSingleLineComment inserts a single line comment right above layout *)
 let rec prependSingleLineComment ?newlinesAboveDocComments:(newlinesAboveDocComments=0) comment layout =
   match layout with
@@ -1240,7 +1243,7 @@ let rec prependSingleLineComment ?newlinesAboveDocComments:(newlinesAboveDocComm
   | Layout.Sequence (config, hd::tl) when config.break = Always_rec->
      Layout.Sequence(config, (prependSingleLineComment ~newlinesAboveDocComments comment hd)::tl)
   | layout ->
-    let withComment = breakline (Layout.formatComment comment) layout in
+    let withComment = breakline (format_comment comment) layout in
      if Comment.is_doc comment then
        insertBlankLines newlinesAboveDocComments withComment
      else
@@ -1258,7 +1261,7 @@ let rec looselyAttachComment layout comment =
   | Layout.WithEOLComment (c, sub) ->
      Layout.WithEOLComment (c, looselyAttachComment sub comment)
   | Layout.Easy e ->
-     inline ~postSpace:true layout (Layout.formatComment comment)
+     inline ~postSpace:true layout (format_comment comment)
   | Layout.Sequence (listConfig, subLayouts)
     when List.exists (Layout.contains_location location) subLayouts ->
      (* If any of the subLayout strictly contains this comment, recurse into to it *)
@@ -1270,7 +1273,7 @@ let rec looselyAttachComment layout comment =
     Layout.Sequence (listConfig, List.map recurse_sublayout subLayouts)
   | Layout.Sequence (listConfig, subLayouts) when subLayouts == [] ->
     (* If there are no subLayouts (empty body), create a Layout.Sequence of just the comment *)
-    Layout.Sequence (listConfig, [Layout.formatComment comment])
+    Layout.Sequence (listConfig, [format_comment comment])
   | Layout.Sequence (listConfig, subLayouts) ->
     let (beforeComment, afterComment) =
       Syntax_util.pick_while (Layout.is_before ~location) subLayouts in
@@ -1313,7 +1316,7 @@ let rec insertSingleLineComment layout comment =
          prependSingleLineComment comment layout
   | Layout.Sequence (listConfig, subLayouts) when subLayouts = [] ->
         (* If there are no subLayouts (empty body), create a Layout.Sequence of just the comment *)
-        Layout.Sequence (listConfig, [Layout.formatComment comment])
+        Layout.Sequence (listConfig, [format_comment comment])
       | Layout.Sequence (listConfig, subLayouts) ->
          let newlinesAboveDocComments = listConfig.newlinesAboveDocComments in
     let (beforeComment, afterComment) =
@@ -1322,7 +1325,7 @@ let rec insertSingleLineComment layout comment =
            match afterComment with
       (* Nothing in the list is after comment, attach comment to the statement before the comment *)
       | [] ->
-        let break sublayout = breakline sublayout (Layout.formatComment comment) in
+        let break sublayout = breakline sublayout (format_comment comment) in
         Layout.Sequence (listConfig, Syntax_util.map_last break beforeComment)
            | hd::tl ->
               let afterComment =
@@ -1351,7 +1354,7 @@ let rec insertSingleLineComment layout comment =
       | (Some loc1, Some loc2) when location_before location loc2 ->
               (left, prependSingleLineComment comment right)
       | _ ->
-        (left, breakline right (Layout.formatComment comment))
+        (left, breakline right (format_comment comment))
          in
          Layout.Label (formatter, newLeft, newRight)
 
@@ -1366,7 +1369,7 @@ let rec attachCommentToNodeRight layout comment =
   | layout ->
        match Comment.category comment with
     | EndOfLine -> Layout.WithEOLComment (comment, layout)
-    | _ -> inline ~postSpace:true layout (Layout.formatComment comment)
+    | _ -> inline ~postSpace:true layout (format_comment comment)
 
 let rec attachCommentToNodeLeft comment layout =
   match layout with
@@ -1377,7 +1380,7 @@ let rec attachCommentToNodeLeft comment layout =
   | Layout.SourceMap (loc, sub) ->
      Layout.SourceMap (loc, attachCommentToNodeLeft comment sub )
   | layout ->
-     Layout.Label (inlineLabel, Layout.formatComment comment, layout)
+     Layout.Label (inlineLabel, format_comment comment, layout)
 
 (** [tryPerfectlyAttachComment layout comment] postorderly walk the [layout] and tries
  *  to perfectly attach a comment with a layout node.
@@ -4894,14 +4897,13 @@ let printer = object(self:'self)
 
   method item_extension (s, e) = (self#payload "%%" s e)
 
-
   (* [@ ...] Simple attributes *)
   method attribute = function
     | { Location. txt = ("ocaml.doc" | "ocaml.text") },
       PStr [{ pstr_desc = Pstr_eval ({ pexp_desc = Pexp_constant (Pconst_string(text, None)); _ } , _);
               pstr_loc; _ }] ->
-      let node = Layout.formatComment ~is_doc:true
-          (Comment.make ~location:pstr_loc Comment.Regular text) in
+      let node =
+        atom ~loc:pstr_loc (Comment.wrap_doc text) in
       (* If the comment has multiple lines, lie about the length of the
          last line to force the pretty printer to break the line
          (I tried cut/break hints but they got ignored *)
