@@ -4900,8 +4900,17 @@ let printer = object(self:'self)
     | { Location. txt = ("ocaml.doc" | "ocaml.text") },
       PStr [{ pstr_desc = Pstr_eval ({ pexp_desc = Pexp_constant (Pconst_string(text, None)); _ } , _);
               pstr_loc; _ }] ->
-      let text = if text = "" then "/**/" else "/**" ^ text ^ "*/" in
-      makeList ~inline:(true, true) ~postSpace:true ~preSpace:true ~indent:0 ~break:IfNeed [atom ~loc:pstr_loc text]
+      let node = Layout.formatComment ~is_doc:true
+          (Comment.make ~location:pstr_loc Comment.Regular text) in
+      (* If the comment has multiple lines, lie about the length of the
+         last line to force the pretty printer to break the line
+         (I tried cut/break hints but they got ignored *)
+      if String.contains text '\n' then
+        let len = String.length text in
+        let lie ppf = Format.pp_print_as ppf len "" in
+        makeList [node; Layout.Easy (Easy_format.Custom lie)]
+      else
+        node
     | (s, e) -> self#payload "@" s e
 
   (* [@@ ... ] Attributes that occur after a major item in a structure/class *)

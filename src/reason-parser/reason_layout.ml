@@ -348,10 +348,10 @@ let lineZeroMeaningfulContent line = lineZeroMeaningfulContent_ line (String.len
 
 let string_after s n = String.sub s n (String.length s - n)
 
-let formatComment comment =
+let formatComment ?is_doc comment =
   let commLines =
     Syntax_util.split_by ~keep_empty:true (fun x -> x = '\n')
-      (Comment.wrap comment)
+      (Comment.wrap ?is_doc comment)
   in
   let text = match commLines with
     | [] -> ""

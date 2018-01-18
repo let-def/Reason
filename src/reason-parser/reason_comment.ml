@@ -37,8 +37,10 @@ let dump ppf t =
 let dump_list ppf list =
   List.iter (Format.fprintf ppf "%a\n" dump) list
 
-let wrap t =
+let wrap ?(is_doc=false)t =
   match t.text with
+  | "" when is_doc -> "/**/"
+  | txt when is_doc -> "/**" ^ txt ^ "*/"
   | "" | "*" -> "/***/"
   | txt when txt.[0] = '*' && txt.[1] <> '*' -> "/**" ^ txt ^ "*/"
   | txt -> "/*" ^ txt ^ "*/"
@@ -49,3 +51,23 @@ let is_doc t =
 let make ~location category text =
   { text; category; location }
 
+let align_lines str =
+  match Syntax_util.split_by ~keep_empty:true ((=) '\n') str with
+  | [] -> ""
+  | [x] -> x
+  | first :: rest ->
+    let leading_spaces =
+      let count_leading acc str =
+        if str = "" then acc
+        else
+          let len = min acc (String.length str) and i = ref 0 in
+          while !i < len && str.[!i] = ' ' do incr i done;
+          !i
+      in
+      List.fold_left count_leading max_int rest
+    in
+    let leading_spaces = max 0 (leading_spaces - 1) in
+    let chop str =
+      String.sub str leading_spaces (String.length str - leading_spaces)
+    in
+    String.concat "\n" (first :: List.map chop rest)
