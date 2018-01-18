@@ -409,4 +409,16 @@ let add_error_message err =
   with
   | Not_found -> [MenhirMessagesError err]
   in
-  menhirMessagesError := !menhirMessagesError @ msg;
+  menhirMessagesError := !menhirMessagesError @ msg
+
+(** Returns true if loc1 is before loc2 *)
+let location_before loc1 loc2 =
+  let open Location in
+  loc1.loc_end.Lexing.pos_cnum <= loc2.loc_start.Lexing.pos_cnum
+
+(** Returns true if loc1 contains loc2 *)
+let location_contains loc1 loc2 =
+  let open Location in
+  loc1.loc_start.Lexing.pos_cnum <= loc2.loc_start.Lexing.pos_cnum &&
+  loc1.loc_end.Lexing.pos_cnum >= loc2.loc_end.Lexing.pos_cnum
+

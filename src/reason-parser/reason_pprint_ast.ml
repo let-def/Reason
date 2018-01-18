@@ -56,6 +56,7 @@ open Syntax_util
 
 module Comment = Reason_comment
 module Layout = Reason_layout
+open Layout.Syntax
 
 exception NotPossible of string
 
@@ -251,11 +252,6 @@ let same_ast_modulo_varification_and_extensions t1 t2 =
     | _ -> false
   in
   loop t1 t2
-
-let source_map ?(loc=Location.none) layout =
-  if loc <> Location.none
-  then Layout.SourceMap (loc, layout)
-  else layout
 
 let expandLocation pos ~expand:(startPos, endPos) =
   { pos with
@@ -737,6 +733,7 @@ let detectTernary l = match l with
       pc_rhs=ifFalse
     }] -> Some (ifTrue, ifFalse)
   | _ -> None
+
 type funcApplicationLabelStyle =
   (* No attaching to the label, but if the entire application fits on one line,
      the entire application will appear next to the label as you 'd expect. *)
@@ -982,99 +979,6 @@ let isArityClear attrs =
 
 let indent_body = settings.listsRecordsIndent * settings.space
 
-let list_settings = {
-  Easy_format.space_after_opening = false;
-  space_after_separator = false;
-  space_before_separator = false;
-  separators_stick_left = true;
-  space_before_closing = false;
-  stick_to_label = true;
-  align_closing = true;
-  wrap_body = `No_breaks;
-  indent_body;
-  list_style = Some "list";
-  opening_style = None;
-  body_style = None;
-  separator_style = None;
-  closing_style = None;
-}
-
-let labelStringStyle = { Easy_format.atom_style = Some "atomClss" }
-
-let makeListConfig
-    ?(newlinesAboveItems=0)
-    ?(newlinesAboveComments=0)
-    ?(newlinesAboveDocComments=0)
-    ?listConfigIfCommentsInterleaved
-    ?(listConfigIfEolCommentsInterleaved)
-    ?(renderFinalSep=false)
-    ?(break=Layout.Never)
-    ?(wrap=("", ""))
-    ?(inline=(true, false))
-    ?(sep="")
-    ?(indent=list_settings.indent_body)
-    ?(sepLeft=true)
-    ?(preSpace=false)
-    ?(postSpace=false)
-    ?(pad=(false,false))
-    () =
-  { Layout.
-    newlinesAboveItems;
-    newlinesAboveComments;
-    newlinesAboveDocComments;
-    listConfigIfCommentsInterleaved;
-    listConfigIfEolCommentsInterleaved;
-    renderFinalSep;
-    break;
-    wrap;
-    inline;
-    sep;
-    indent;
-    sepLeft;
-    preSpace;
-    postSpace;
-    pad;
-  }
-
-let makeList
-    (* Allows a fallback in the event that comments were interleaved with the
-     * list *)
-    ?(newlinesAboveItems=0)
-    ?(newlinesAboveComments=0)
-    ?(newlinesAboveDocComments=0)
-    ?listConfigIfCommentsInterleaved
-    ?listConfigIfEolCommentsInterleaved
-    ?(renderFinalSep=false)
-    ?(break=Layout.Never)
-    ?(wrap=("", ""))
-    ?(inline=(true, false))
-    ?(sep="")
-    ?(indent=list_settings.indent_body)
-    ?(sepLeft=true)
-    ?(preSpace=false)
-    ?(postSpace=false)
-    ?(pad=(false,false)) lst =
-  let config =
-    makeListConfig
-      ~newlinesAboveItems
-      ~newlinesAboveComments
-      ~newlinesAboveDocComments
-      ?listConfigIfCommentsInterleaved
-      ?listConfigIfEolCommentsInterleaved
-      ~renderFinalSep
-      ~break
-      ~wrap
-      ~inline
-      ~sep
-      ~indent
-      ~sepLeft
-      ~preSpace
-      ~postSpace
-      ~pad
-      ()
-  in
-  Layout.Sequence (config, lst)
-
 let makeAppList l =
   match l with
   | hd::[] -> hd
@@ -1151,10 +1055,6 @@ let label ?(break=`Auto) ?(space=false) ?(indent=settings.indentAfterLabels) (la
     term
   )
 
-let atom ?loc str =
-  let layout = Layout.Easy (Easy_format.Atom(str, labelStringStyle)) in
-  source_map ?loc layout
-
 (** Take x,y,z and n and generate [x, y, z, ...n] *)
 let makeES6List ?wrap:(wrap=("", "")) lst last =
   let (left, right) = wrap in
@@ -1190,40 +1090,6 @@ let wrap fn term =
   fn Format.str_formatter term;
   atom (Format.flush_str_formatter ())
 
-(* Don't use `trim` since it kills line return too? *)
-let rec beginsWithStar_ line length idx =
-  if idx = length then false
-  else
-    let ch = String.get line idx in
-    if ch = '*' then true
-    else if ch = '\t' || ch = ' ' then beginsWithStar_ line length (idx + 1)
-    else false
-
-let beginsWithStar line = beginsWithStar_ line (String.length line) 0
-
-let rec numLeadingSpace_ line length idx accum =
-  if idx = length then accum
-  else
-    let ch = String.get line idx in
-    if ch = '\t' || ch = ' ' then numLeadingSpace_ line length (idx + 1) (accum + 1)
-    else accum
-
-let numLeadingSpace line = numLeadingSpace_ line (String.length line) 0 0
-
-(* Computes the smallest leading spaces for non-empty lines *)
-let smallestLeadingSpaces strs =
-  let rec smallestLeadingSpaces curMin strs = match strs with
-    | [] -> curMin
-    | hd::tl ->
-      if hd = "" then
-        smallestLeadingSpaces curMin tl
-      else
-        let leadingSpace = numLeadingSpace hd in
-        let nextMin = min curMin leadingSpace in
-        smallestLeadingSpaces nextMin tl
-  in
-  smallestLeadingSpaces 99999 strs
-
 let isSequencey layout =
   let rec aux = function
     | Layout.SourceMap (_, subLayoutNode) -> aux subLayoutNode
@@ -1245,59 +1111,6 @@ let insertBlankLines n term =
   if n = 0 then term else
     makeList ~inline:(true, true) ~indent:0 ~break:Always_rec
       (Array.to_list (Array.make n (atom "")) @ [term])
-
-let string_after s n = String.sub s n (String.length s - n)
-
-(* This is a special-purpose functions only used by `formatComment_`. Notice we
-skip a char below during usage because we know the comment starts with `/*` *)
-let rec lineZeroMeaningfulContent_ line length idx accum =
-  if idx = length then None
-  else
-    let ch = String.get line idx in
-    if ch = '\t' || ch = ' ' || ch = '*' then
-      lineZeroMeaningfulContent_ line length (idx + 1) (accum + 1)
-    else Some accum
-
-let lineZeroMeaningfulContent line = lineZeroMeaningfulContent_ line (String.length line) 1 0
-
-let formatComment_ txt =
-  let commLines =
-    Syntax_util.split_by ~keep_empty:true (fun x -> x = '\n')
-      (Comment.wrap txt)
-  in
-  match commLines with
-  | [] -> atom ""
-  | [hd] ->
-    makeList ~inline:(true, true) ~postSpace:true ~preSpace:true ~indent:0 ~break:IfNeed [atom hd]
-  | zero::one::tl ->
-    let attemptRemoveCount = (smallestLeadingSpaces (one::tl)) in
-    let leftPad =
-      if beginsWithStar one then 1
-      else match lineZeroMeaningfulContent zero with
-      | None -> 1
-      | Some num -> num + 1
-    in
-    let padNonOpeningLine s =
-      let numLeadingSpaceForThisLine = numLeadingSpace s in
-      if String.length s == 0 then ""
-      else (String.make leftPad ' ') ^
-            (string_after s (min attemptRemoveCount numLeadingSpaceForThisLine)) in
-    let lines = zero :: List.map padNonOpeningLine (one::tl) in
-    makeList ~inline:(true, true) ~indent:0 ~break:Always_rec (List.map atom lines)
-
-let formatComment comment =
-  let layout = formatComment_ comment in
-  let loc = comment.Comment.location in
-  if loc = Location.none then
-    layout
-  else
-    SourceMap (loc, layout)
-
-(** [hasComment layout] checks if a layout has comment attached to it *)
-let rec hasComment = function
-  | Layout.WithEOLComment (_, _) -> true
-  | Layout.SourceMap (_, sub) -> hasComment sub
-  | _ -> false
 
 let rec append ?(space=false) txt = function
   | Layout.SourceMap (loc, sub) -> Layout.SourceMap (loc, append ~space txt sub)
@@ -1336,7 +1149,7 @@ let rec flattenCommentAndSep ?spaceBeforeSep:(spaceBeforeSep=false) ?sep = funct
       | Some sep -> appendSep spaceBeforeSep sep sub
     in
     append ~space:true (Comment.wrap comment) sub
-  | Layout.Sequence (listConfig, [hd]) when hasComment hd ->
+  | Layout.Sequence (listConfig, [hd]) when Layout.has_comment hd ->
     Layout.Sequence (listConfig, [flattenCommentAndSep ~spaceBeforeSep ?sep hd])
   | Layout.SourceMap (loc, sub) ->
      Layout.SourceMap (loc, flattenCommentAndSep ~spaceBeforeSep ?sep sub)
@@ -1390,7 +1203,7 @@ let consolidateSeparator = preOrderWalk (function
              flattenCommentAndSep ~spaceBeforeSep:listConfig.preSpace layout
            else
              flattenCommentAndSep ~spaceBeforeSep:listConfig.preSpace ~sep:listConfig.sep layout) sublayouts in
-     let break = if List.exists hasComment sublayouts then
+     let break = if List.exists Layout.has_comment sublayouts then
                    Layout.Always_rec
                  else
                    listConfig.break in
@@ -1416,68 +1229,10 @@ let insertLinesAboveItems = preOrderWalk (function
   | layout -> layout
 )
 
-(** Union of two locations *)
-let unionLoc loc1 loc2 =
-  match (loc1, loc2) with
-  | None, _ -> loc2
-  | _, None -> loc1
-  | Some loc1, Some loc2  -> Some {loc1 with loc_end = loc2.loc_end}
-
-(** [getLocFromLayout] recursively takes the unioned location of its children,
- *  and returns the max one
- *)
-let rec getLocFromLayout = function
-  | Layout.Sequence (listConfig, subLayouts) ->
-     let locs = List.map getLocFromLayout subLayouts in
-     List.fold_left unionLoc None locs
-  | Layout.Label (formatter, left, right) ->
-     let leftLoc = getLocFromLayout left in
-     let rightLoc = getLocFromLayout right in
-     unionLoc leftLoc rightLoc
-  | Layout.SourceMap (loc, _) ->
-     Some loc
-  | Layout.WithEOLComment (_, sub) ->
-     getLocFromLayout sub
-  | _ -> None
-
-(**
- * Returns true if loc1 contains loc2
- *)
-let containLoc loc1 loc2 =
-  loc1.loc_start.Lexing.pos_cnum <= loc2.loc_start.Lexing.pos_cnum &&
-  loc1.loc_end.Lexing.pos_cnum >= loc2.loc_end.Lexing.pos_cnum
-
-(**
- * Returns true if loc1 is before loc2
- *)
-let beforeLoc loc1 loc2 =
-  loc1.loc_end.Lexing.pos_cnum <= loc2.loc_start.Lexing.pos_cnum
-
 let attachEOLComment layout txt =
   Layout.WithEOLComment (txt, layout)
 
-let layout_is_before ~location layout = match getLocFromLayout layout with
-  | None -> true
-  | Some loc -> beforeLoc loc location
-
-(**
- * Returns true if the layout's location contains loc
- *)
-let layoutContainsLoc loc layout =
-  match getLocFromLayout layout with
-  | None -> false
-  | Some subLoc -> containLoc subLoc loc
-
-
-(**
- * Returns true if any of the subLayout's location contains loc
- *)
-let anySublayoutContainLocation loc =
-  List.exists (layoutContainsLoc loc)
-
-(**
- * prependSingleLineComment inserts a single line comment right above layout
- *)
+(** prependSingleLineComment inserts a single line comment right above layout *)
 let rec prependSingleLineComment ?newlinesAboveDocComments:(newlinesAboveDocComments=0) comment layout =
   match layout with
   | Layout.WithEOLComment (c, sub) ->
@@ -1487,7 +1242,7 @@ let rec prependSingleLineComment ?newlinesAboveDocComments:(newlinesAboveDocComm
   | Layout.Sequence (config, hd::tl) when config.break = Always_rec->
      Layout.Sequence(config, (prependSingleLineComment ~newlinesAboveDocComments comment hd)::tl)
   | layout ->
-    let withComment = breakline (formatComment comment) layout in
+    let withComment = breakline (Layout.formatComment comment) layout in
      if Comment.is_doc comment then
        insertBlankLines newlinesAboveDocComments withComment
      else
@@ -1505,22 +1260,22 @@ let rec looselyAttachComment layout comment =
   | Layout.WithEOLComment (c, sub) ->
      Layout.WithEOLComment (c, looselyAttachComment sub comment)
   | Layout.Easy e ->
-     inline ~postSpace:true layout (formatComment comment)
+     inline ~postSpace:true layout (Layout.formatComment comment)
   | Layout.Sequence (listConfig, subLayouts)
-    when anySublayoutContainLocation location subLayouts ->
+    when List.exists (Layout.contains_location location) subLayouts ->
      (* If any of the subLayout strictly contains this comment, recurse into to it *)
     let recurse_sublayout layout =
-      if layoutContainsLoc location layout
+      if Layout.contains_location location layout
       then looselyAttachComment layout comment
       else layout
     in
     Layout.Sequence (listConfig, List.map recurse_sublayout subLayouts)
   | Layout.Sequence (listConfig, subLayouts) when subLayouts == [] ->
     (* If there are no subLayouts (empty body), create a Layout.Sequence of just the comment *)
-    Layout.Sequence (listConfig, [formatComment comment])
+    Layout.Sequence (listConfig, [Layout.formatComment comment])
   | Layout.Sequence (listConfig, subLayouts) ->
     let (beforeComment, afterComment) =
-      Syntax_util.pick_while (layout_is_before ~location) subLayouts in
+      Syntax_util.pick_while (Layout.is_before ~location) subLayouts in
      let newSubLayout = match List.rev beforeComment with
       | hd :: tl ->
         List.rev_append (attachEOLComment hd comment :: tl) afterComment
@@ -1530,16 +1285,16 @@ let rec looselyAttachComment layout comment =
      Layout.Sequence (listConfig, newSubLayout)
   | Layout.Label (formatter, left, right) ->
     let newLeft, newRight =
-      match (getLocFromLayout left, getLocFromLayout right) with
+      match (Layout.get_location left, Layout.get_location right) with
        | (None, None) ->
           (left, looselyAttachComment right comment)
-      | (_, Some loc2) when containLoc loc2 location ->
+      | (_, Some loc2) when location_contains loc2 location ->
           (left, looselyAttachComment right comment)
-      | (Some loc1, _) when containLoc loc1 location ->
+      | (Some loc1, _) when location_contains loc1 location ->
           (looselyAttachComment left comment, right)
-      | (Some loc1, Some loc2) when beforeLoc location loc1 ->
+      | (Some loc1, Some loc2) when location_before location loc1 ->
           (prependSingleLineComment comment left, right)
-      | (Some loc1, Some loc2) when beforeLoc location loc2 ->
+      | (Some loc1, Some loc2) when location_before location loc2 ->
           (left, prependSingleLineComment comment right)
        | _ -> (left, attachEOLComment right comment)
      in
@@ -1560,21 +1315,21 @@ let rec insertSingleLineComment layout comment =
          prependSingleLineComment comment layout
   | Layout.Sequence (listConfig, subLayouts) when subLayouts = [] ->
         (* If there are no subLayouts (empty body), create a Layout.Sequence of just the comment *)
-        Layout.Sequence (listConfig, [formatComment comment])
+        Layout.Sequence (listConfig, [Layout.formatComment comment])
       | Layout.Sequence (listConfig, subLayouts) ->
          let newlinesAboveDocComments = listConfig.newlinesAboveDocComments in
     let (beforeComment, afterComment) =
-      Syntax_util.pick_while (layout_is_before ~location) subLayouts in
+      Syntax_util.pick_while (Layout.is_before ~location) subLayouts in
          begin
            match afterComment with
       (* Nothing in the list is after comment, attach comment to the statement before the comment *)
       | [] ->
-        let break sublayout = breakline sublayout (formatComment comment) in
+        let break sublayout = breakline sublayout (Layout.formatComment comment) in
         Layout.Sequence (listConfig, Syntax_util.map_last break beforeComment)
            | hd::tl ->
               let afterComment =
-                match getLocFromLayout hd with
-          | Some loc when containLoc loc location ->
+                match Layout.get_location hd with
+          | Some loc when location_contains loc location ->
                    insertSingleLineComment hd comment :: tl
                 | Some loc ->
                    Layout.SourceMap (loc, (prependSingleLineComment ~newlinesAboveDocComments comment hd)) :: tl
@@ -1584,21 +1339,21 @@ let rec insertSingleLineComment layout comment =
               Layout.Sequence (listConfig, beforeComment @ afterComment)
          end
       | Layout.Label (formatter, left, right) ->
-         let leftLoc = getLocFromLayout left in
-         let rightLoc = getLocFromLayout right in
+         let leftLoc = Layout.get_location left in
+         let rightLoc = Layout.get_location right in
          let newLeft, newRight = match (leftLoc, rightLoc) with
            | (None, None) ->
               (left, insertSingleLineComment right comment)
-      | (_, Some loc2) when containLoc loc2 location ->
+      | (_, Some loc2) when location_contains loc2 location ->
               (left, insertSingleLineComment right comment)
-      | (Some loc1, _) when containLoc loc1 location ->
+      | (Some loc1, _) when location_contains loc1 location ->
               (insertSingleLineComment left comment, right)
-      | (Some loc1, Some loc2) when beforeLoc location loc1 ->
+      | (Some loc1, Some loc2) when location_before location loc1 ->
               (prependSingleLineComment comment left, right)
-      | (Some loc1, Some loc2) when beforeLoc location loc2 ->
+      | (Some loc1, Some loc2) when location_before location loc2 ->
               (left, prependSingleLineComment comment right)
       | _ ->
-        (left, breakline right (formatComment comment))
+        (left, breakline right (Layout.formatComment comment))
          in
          Layout.Label (formatter, newLeft, newRight)
 
@@ -1613,7 +1368,7 @@ let rec attachCommentToNodeRight layout comment =
   | layout ->
        match Comment.category comment with
     | EndOfLine -> Layout.WithEOLComment (comment, layout)
-    | _ -> inline ~postSpace:true layout (formatComment comment)
+    | _ -> inline ~postSpace:true layout (Layout.formatComment comment)
 
 let rec attachCommentToNodeLeft comment layout =
   match layout with
@@ -1624,7 +1379,7 @@ let rec attachCommentToNodeLeft comment layout =
   | Layout.SourceMap (loc, sub) ->
      Layout.SourceMap (loc, attachCommentToNodeLeft comment sub )
   | layout ->
-     Layout.Label (inlineLabel, formatComment comment, layout)
+     Layout.Label (inlineLabel, Layout.formatComment comment, layout)
 
 (** [tryPerfectlyAttachComment layout comment] postorderly walk the [layout] and tries
  *  to perfectly attach a comment with a layout node.

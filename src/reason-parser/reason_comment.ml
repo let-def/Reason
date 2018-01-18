@@ -48,3 +48,4 @@ let is_doc t =
 
 let make ~location category text =
   { text; category; location }
+

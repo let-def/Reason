@@ -68,8 +68,6 @@ and whenToDoSomething =
   (* Always_rec not only will break, it will break recursively up to the root *)
   | Always_rec
 
-let fprintf = Format.fprintf
-
 let string_of_easy_format = function
   | Easy_format.Atom (s,_) -> s
   | Easy_format.List (_,_) -> "list"
@@ -81,7 +79,7 @@ let indent_more indent = indent ^ "  "
 let dump ppf layout =
   let rec traverse indent = function
     | SourceMap (loc, layout) ->
-      fprintf ppf "%s [%d (%d:%d)-%d (%d:%d)]\n" indent
+      Format.fprintf ppf "%s [%d (%d:%d)-%d (%d:%d)]\n" indent
         loc.loc_start.Lexing.pos_cnum
         loc.loc_start.Lexing.pos_lnum
         (loc.loc_start.Lexing.pos_cnum - loc.loc_start.Lexing.pos_bol)
@@ -95,7 +93,7 @@ let dump ppf layout =
         | IfNeed  -> "if need"
         | Always  -> "Always"
         | Always_rec  -> "Always_rec" in
-      fprintf ppf
+      Format.fprintf ppf
         "%s Sequence of %d, sep: %s, finalSep: %s stick_to_left: %s break: %s\n"
         indent
         (List.length layout_list) config.sep (string_of_bool config.renderFinalSep)
@@ -103,28 +101,28 @@ let dump ppf layout =
       let indent' = indent_more indent in
       List.iter (traverse indent') layout_list
     | WithEOLComment (comment, layout) ->
-      fprintf ppf "%s WithEOLComment: \n" indent;
-      fprintf ppf "  %s node \n" indent;
+      Format.fprintf ppf "%s WithEOLComment: \n" indent;
+      Format.fprintf ppf "  %s node \n" indent;
       traverse (indent_more indent) layout;
-      fprintf ppf "  %s comments : \n" indent;
-      fprintf ppf "  %s %a\n" indent Comment.dump comment;
-      fprintf ppf "\n";
+      Format.fprintf ppf "  %s comments : \n" indent;
+      Format.fprintf ppf "  %s %a\n" indent Comment.dump comment;
+      Format.fprintf ppf "\n";
     | Label (_, left, right) ->
       let indent' = indent_more indent in
-      fprintf ppf "%s Label: \n" indent;
-      fprintf ppf "  %s left \n" indent;
+      Format.fprintf ppf "%s Label: \n" indent;
+      Format.fprintf ppf "  %s left \n" indent;
       traverse indent' left;
-      fprintf ppf "  %s right \n" indent;
+      Format.fprintf ppf "  %s right \n" indent;
       traverse indent' right;
     | Easy e ->
-      fprintf ppf "%s Easy: %s \n" indent (string_of_easy_format e)
+      Format.fprintf ppf "%s Easy: %s \n" indent (string_of_easy_format e)
   in
   traverse "" layout
 
 let dump_easy ppf easy =
   let rec traverse indent = function
     | Easy_format.Atom (s,_) ->
-      fprintf ppf "%s Atom:'%s'\n" indent s
+      Format.fprintf ppf "%s Atom:'%s'\n" indent s
     | Easy_format.List ((opening, sep, closing, config), items) ->
       let break = (match config.wrap_body with
           | `No_breaks -> "No_breaks"
@@ -133,7 +131,7 @@ let dump_easy ppf easy =
           | `Force_breaks -> "Force_breaks"
           | `Force_breaks_rec -> "Force_breaks_rec"
           | `Always_wrap -> "Always_wrap") in
-      fprintf ppf "%s List: open %s close %s sep %s break %s \n"
+      Format.fprintf ppf "%s List: open %s close %s sep %s break %s \n"
         indent opening closing sep break;
       let indent' = indent_more indent in
       List.iter (traverse indent') items
@@ -145,16 +143,16 @@ let dump_easy ppf easy =
         | `Always -> "Always"
       in
       let indent' = indent_more indent in
-      fprintf ppf "%s Label (break = %s): \n" indent break;
-      fprintf ppf "  %s left \n" indent;
+      Format.fprintf ppf "%s Label (break = %s): \n" indent break;
+      Format.fprintf ppf "  %s left \n" indent;
       traverse indent' left;
-      fprintf ppf "  %s right \n" indent;
+      Format.fprintf ppf "  %s right \n" indent;
       traverse indent' right
-    | Custom _ -> fprintf ppf "custom \n"
+    | Custom _ -> Format.fprintf ppf "custom \n"
   in
   traverse "" easy
 
-let easy_list_param_of_listConfig list_param
+let config_to_easy_format list_param
     { break; indent; sepLeft; preSpace; postSpace; sep;
       wrap = (opn, cls); inline = (inlineStart, inlineEnd);
       pad = (padOpn, padCls);
@@ -199,7 +197,7 @@ let to_easy_format ?(indent_body=0) layout =
   let rec traverse = function
     | Sequence (listConfig, subLayouts) ->
       Easy_format.List (
-        easy_list_param_of_listConfig base_param listConfig ,
+        config_to_easy_format base_param listConfig ,
         List.map traverse subLayouts
       )
     | Label (labelFormatter, left, right) ->
@@ -211,3 +209,174 @@ let to_easy_format ?(indent_body=0) layout =
     | Easy e -> e
   in
   traverse layout
+
+(** [has_comment layout] checks if a layout has comment attached to it *)
+let rec has_comment = function
+  | WithEOLComment (_, _) -> true
+  | SourceMap (_, sub) -> has_comment sub
+  | _ -> false
+
+
+(** [get_location] recursively takes the unioned location of its children,
+    and returns the max one *)
+let get_location layout =
+  let union loc1 loc2 =
+    match (loc1, loc2) with
+    | None, _ -> loc2
+    | _, None -> loc1
+    | Some loc1, Some loc2 ->
+      Some {loc1 with Location.loc_end = loc2.Location.loc_end}
+  in
+  let rec loop = function
+    | Sequence (listConfig, subLayouts) ->
+      let locs = List.map loop subLayouts in
+      List.fold_left union None locs
+    | Label (formatter, left, right) ->
+      let leftLoc = loop left in
+      let rightLoc = loop right in
+      union leftLoc rightLoc
+    | SourceMap (loc, _) ->
+      Some loc
+    | WithEOLComment (_, sub) ->
+      loop sub
+    | _ -> None
+  in
+  loop layout
+
+let is_before ~location layout =
+  match get_location layout with
+  | None -> true
+  | Some loc -> Syntax_util.location_before loc location
+
+
+(** Returns true if the layout's location contains loc *)
+let contains_location loc layout =
+  match get_location layout with
+  | None -> false
+  | Some subLoc -> Syntax_util.location_contains subLoc loc
+
+module Syntax =
+struct
+
+  let source_map ?(loc=Location.none) layout =
+    if loc <> Location.none
+    then SourceMap (loc, layout)
+    else layout
+
+  let atom ?loc str =
+    let labelStringStyle = { Easy_format.atom_style = Some "atomClss" } in
+    let layout = Easy (Easy_format.Atom(str, labelStringStyle)) in
+    source_map ?loc layout
+
+  let makeList
+      ?(newlinesAboveItems=0)
+      ?(newlinesAboveComments=0)
+      ?(newlinesAboveDocComments=0)
+      ?listConfigIfCommentsInterleaved
+      ?listConfigIfEolCommentsInterleaved
+      ?(renderFinalSep=false)
+      ?(break=Never)
+      ?(wrap=("", ""))
+      ?(inline=(true, false))
+      ?(sep="")
+      ?(indent=2)
+      ?(sepLeft=true)
+      ?(preSpace=false)
+      ?(postSpace=false)
+      ?(pad=(false,false))
+      lst
+    =
+    let config = {
+      newlinesAboveItems; newlinesAboveComments; newlinesAboveDocComments;
+      listConfigIfCommentsInterleaved; listConfigIfEolCommentsInterleaved;
+      renderFinalSep; break; wrap; inline; sep; indent; sepLeft;
+      preSpace; postSpace; pad;
+    } in
+    Sequence (config, lst)
+
+end
+
+open Syntax
+
+(* WIP: Format comment *)
+
+(* Don't use `trim` since it kills line return too? *)
+let rec beginsWithStar_ line length idx =
+  if idx = length then false
+  else
+    let ch = String.get line idx in
+    if ch = '*' then true
+    else if ch = '\t' || ch = ' ' then beginsWithStar_ line length (idx + 1)
+    else false
+
+let beginsWithStar line = beginsWithStar_ line (String.length line) 0
+
+let rec numLeadingSpace_ line length idx accum =
+  if idx = length then accum
+  else
+    let ch = String.get line idx in
+    if ch = '\t' || ch = ' ' then numLeadingSpace_ line length (idx + 1) (accum + 1)
+    else accum
+
+let numLeadingSpace line = numLeadingSpace_ line (String.length line) 0 0
+
+(* Computes the smallest leading spaces for non-empty lines *)
+let smallestLeadingSpaces strs =
+  let rec smallestLeadingSpaces curMin strs = match strs with
+    | [] -> curMin
+    | hd::tl ->
+      if hd = "" then
+        smallestLeadingSpaces curMin tl
+      else
+        let leadingSpace = numLeadingSpace hd in
+        let nextMin = min curMin leadingSpace in
+        smallestLeadingSpaces nextMin tl
+  in
+  smallestLeadingSpaces 99999 strs
+
+(* This is a special-purpose functions only used by `formatComment_`. Notice we
+   skip a char below during usage because we know the comment starts with `/*` *)
+let rec lineZeroMeaningfulContent_ line length idx accum =
+  if idx = length then None
+  else
+    let ch = String.get line idx in
+    if ch = '\t' || ch = ' ' || ch = '*' then
+      lineZeroMeaningfulContent_ line length (idx + 1) (accum + 1)
+    else Some accum
+
+let lineZeroMeaningfulContent line = lineZeroMeaningfulContent_ line (String.length line) 1 0
+
+let string_after s n = String.sub s n (String.length s - n)
+
+let formatComment_ txt =
+  let commLines =
+    Syntax_util.split_by ~keep_empty:true (fun x -> x = '\n') (Comment.wrap txt)
+  in
+  match commLines with
+  | [] -> atom ""
+  | [hd] ->
+    makeList ~inline:(true, true) ~postSpace:true ~preSpace:true ~indent:0 ~break:IfNeed [atom hd]
+  | zero::one::tl ->
+    let attemptRemoveCount = (smallestLeadingSpaces (one::tl)) in
+    let leftPad =
+      if beginsWithStar one then 1
+      else match lineZeroMeaningfulContent zero with
+        | None -> 1
+        | Some num -> num + 1
+    in
+    let padNonOpeningLine s =
+      let numLeadingSpaceForThisLine = numLeadingSpace s in
+      if String.length s == 0 then ""
+      else (String.make leftPad ' ') ^
+           (string_after s (min attemptRemoveCount numLeadingSpaceForThisLine)) in
+    let lines = zero :: List.map padNonOpeningLine (one::tl) in
+    makeList ~inline:(true, true) ~indent:0 ~break:Always_rec (List.map atom lines)
+
+let formatComment comment =
+  let layout = formatComment_ comment in
+  let loc = comment.location in
+  if loc = Location.none then
+    layout
+  else
+    SourceMap (loc, layout)
+
