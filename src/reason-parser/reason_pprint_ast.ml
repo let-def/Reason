@@ -1072,10 +1072,9 @@ let wrap fn term =
 
 let isSequencey layout =
   let rec aux = function
-    | Layout.SourceMap (_, subLayoutNode) -> aux subLayoutNode
-    | Layout.Sequence _ -> true
+    | Layout.Meta (_, sub) -> aux sub
     | Layout.WithEOLComment (_, sub) -> aux sub
-    | Layout.ForceBreak sub -> aux sub
+    | Layout.Sequence _ -> true
     | Layout.Label (_, _, _) -> false
     | Layout.Easy easy -> isListy easy
   in
@@ -1094,8 +1093,8 @@ let insertBlankLines n term =
       (Array.to_list (Array.make n (atom "")) @ [term])
 
 let rec append ?(space=false) txt = function
-  | Layout.ForceBreak sub -> Layout.ForceBreak (append ~space txt sub)
-  | Layout.SourceMap (loc, sub) -> Layout.SourceMap (loc, append ~space txt sub)
+  | Layout.Meta (meta, sub) ->
+    Layout.Meta (meta, append ~space txt sub)
   | Layout.Sequence (config, l) when snd config.wrap <> "" ->
      let sep = if space then " " else "" in
      Layout.Sequence ({config with wrap=(fst config.wrap, snd config.wrap ^ sep ^ txt)}, l)
@@ -1133,10 +1132,8 @@ let rec flattenCommentAndSep ?spaceBeforeSep:(spaceBeforeSep=false) ?sep = funct
     append ~space:true (Comment.wrap comment) sub
   | Layout.Sequence (listConfig, [hd]) when Layout.has_comment hd ->
     Layout.Sequence (listConfig, [flattenCommentAndSep ~spaceBeforeSep ?sep hd])
-  | Layout.SourceMap (loc, sub) ->
-     Layout.SourceMap (loc, flattenCommentAndSep ~spaceBeforeSep ?sep sub)
-  | Layout.ForceBreak sub ->
-     Layout.ForceBreak (flattenCommentAndSep ~spaceBeforeSep ?sep sub)
+  | Layout.Meta (meta, sub) ->
+     Layout.Meta (meta, flattenCommentAndSep ~spaceBeforeSep ?sep sub)
   | layout ->
      begin
        match sep with
@@ -1153,10 +1150,8 @@ let rec preOrderWalk f layout =
      let newLeftLayout = preOrderWalk f left in
      let newRightLayout = preOrderWalk f right in
      Layout.Label (formatter, newLeftLayout, newRightLayout)
-  | Layout.SourceMap (loc, sub) ->
-     Layout.SourceMap (loc, preOrderWalk f sub)
-  | Layout.ForceBreak sub ->
-     Layout.ForceBreak (preOrderWalk f sub)
+  | Layout.Meta (meta, sub) ->
+     Layout.Meta (meta, preOrderWalk f sub)
   | Layout.WithEOLComment (c, sub) ->
      let newSub = preOrderWalk f sub in
      Layout.WithEOLComment (c, newSub)
@@ -1225,10 +1220,8 @@ let rec prependSingleLineComment ?newlinesAboveDocComments:(newlinesAboveDocComm
   match layout with
   | Layout.WithEOLComment (c, sub) ->
      Layout.WithEOLComment (c, prependSingleLineComment ~newlinesAboveDocComments comment sub)
-  | Layout.SourceMap (loc, sub) ->
-     Layout.SourceMap (loc, prependSingleLineComment ~newlinesAboveDocComments comment sub)
-  | Layout.ForceBreak sub ->
-     Layout.ForceBreak (prependSingleLineComment ~newlinesAboveDocComments comment sub)
+  | Layout.Meta (meta, sub) ->
+     Layout.Meta (meta, prependSingleLineComment ~newlinesAboveDocComments comment sub)
   | Layout.Sequence (config, hd::tl) when config.break = Always_rec->
      Layout.Sequence(config, (prependSingleLineComment ~newlinesAboveDocComments comment hd)::tl)
   | layout ->
@@ -1245,10 +1238,8 @@ let rec prependSingleLineComment ?newlinesAboveDocComments:(newlinesAboveDocComm
 let rec looselyAttachComment layout comment =
   let location = comment.Comment.location in
   match layout with
-  | Layout.ForceBreak sub ->
-     Layout.ForceBreak (looselyAttachComment sub comment)
-  | Layout.SourceMap (loc, sub) ->
-     Layout.SourceMap (loc, looselyAttachComment sub comment)
+  | Layout.Meta (meta, sub) ->
+     Layout.Meta (meta, looselyAttachComment sub comment)
   | Layout.WithEOLComment (c, sub) ->
      Layout.WithEOLComment (c, looselyAttachComment sub comment)
   | Layout.Easy e ->
@@ -1298,58 +1289,57 @@ let rec looselyAttachComment layout comment =
  *)
 let rec insertSingleLineComment layout comment =
   let location = comment.Comment.location in
-      match layout with
-      | Layout.ForceBreak sub ->
-         Layout.ForceBreak (insertSingleLineComment sub comment)
-      | Layout.SourceMap (loc, sub) ->
-         Layout.SourceMap (loc, insertSingleLineComment sub comment)
-      | Layout.WithEOLComment (c, sub) ->
-         Layout.WithEOLComment (c, insertSingleLineComment sub comment)
-      | Layout.Easy e ->
-         prependSingleLineComment comment layout
+  match layout with
+  | Layout.Meta (meta, sub) ->
+    Layout.Meta (meta, insertSingleLineComment sub comment)
+  | Layout.WithEOLComment (c, sub) ->
+    Layout.WithEOLComment (c, insertSingleLineComment sub comment)
+  | Layout.Easy e ->
+    prependSingleLineComment comment layout
   | Layout.Sequence (listConfig, subLayouts) when subLayouts = [] ->
-        (* If there are no subLayouts (empty body), create a Layout.Sequence of just the comment *)
-        Layout.Sequence (listConfig, [format_comment comment])
-      | Layout.Sequence (listConfig, subLayouts) ->
-         let newlinesAboveDocComments = listConfig.newlinesAboveDocComments in
+    (* If there are no subLayouts (empty body), create a Layout.Sequence of just the comment *)
+    Layout.Sequence (listConfig, [format_comment comment])
+  | Layout.Sequence (listConfig, subLayouts) ->
+    let newlinesAboveDocComments = listConfig.newlinesAboveDocComments in
     let (beforeComment, afterComment) =
       Syntax_util.pick_while (Layout.is_before ~location) subLayouts in
-         begin
-           match afterComment with
+    begin
+      match afterComment with
       (* Nothing in the list is after comment, attach comment to the statement before the comment *)
       | [] ->
         let break sublayout = breakline sublayout (format_comment comment) in
         Layout.Sequence (listConfig, Syntax_util.map_last break beforeComment)
-           | hd::tl ->
-              let afterComment =
-                match Layout.get_location hd with
+      | hd::tl ->
+        let afterComment =
+          match Layout.get_location hd with
           | Some loc when location_contains loc location ->
-                   insertSingleLineComment hd comment :: tl
-                | Some loc ->
-                   Layout.SourceMap (loc, (prependSingleLineComment ~newlinesAboveDocComments comment hd)) :: tl
-                | _ ->
-                   prependSingleLineComment ~newlinesAboveDocComments comment hd :: tl
-              in
-              Layout.Sequence (listConfig, beforeComment @ afterComment)
-         end
-      | Layout.Label (formatter, left, right) ->
-         let leftLoc = Layout.get_location left in
-         let rightLoc = Layout.get_location right in
-         let newLeft, newRight = match (leftLoc, rightLoc) with
-           | (None, None) ->
-              (left, insertSingleLineComment right comment)
+            insertSingleLineComment hd comment :: tl
+          | Some loc ->
+            let hd = prependSingleLineComment ~newlinesAboveDocComments comment hd in
+            source_map ~loc hd :: tl
+          | _ ->
+            prependSingleLineComment ~newlinesAboveDocComments comment hd :: tl
+        in
+        Layout.Sequence (listConfig, beforeComment @ afterComment)
+    end
+  | Layout.Label (formatter, left, right) ->
+    let leftLoc = Layout.get_location left in
+    let rightLoc = Layout.get_location right in
+    let newLeft, newRight = match (leftLoc, rightLoc) with
+      | (None, None) ->
+        (left, insertSingleLineComment right comment)
       | (_, Some loc2) when location_contains loc2 location ->
-              (left, insertSingleLineComment right comment)
+        (left, insertSingleLineComment right comment)
       | (Some loc1, _) when location_contains loc1 location ->
-              (insertSingleLineComment left comment, right)
+        (insertSingleLineComment left comment, right)
       | (Some loc1, Some loc2) when location_before location loc1 ->
-              (prependSingleLineComment comment left, right)
+        (prependSingleLineComment comment left, right)
       | (Some loc1, Some loc2) when location_before location loc2 ->
-              (left, prependSingleLineComment comment right)
+        (left, prependSingleLineComment comment right)
       | _ ->
         (left, breakline right (format_comment comment))
-         in
-         Layout.Label (formatter, newLeft, newRight)
+    in
+    Layout.Label (formatter, newLeft, newRight)
 
 let rec attachCommentToNodeRight layout comment =
   match layout with
@@ -1357,12 +1347,10 @@ let rec attachCommentToNodeRight layout comment =
     let lwrap, rwrap = config.wrap in
     let rwrap = rwrap ^ " " ^ Comment.wrap comment in
     Layout.Sequence ({config with wrap = (lwrap, rwrap)}, sub)
-  | Layout.SourceMap (loc, sub) ->
-     Layout.SourceMap (loc, attachCommentToNodeRight sub comment)
-  | Layout.ForceBreak (sub) ->
-     Layout.ForceBreak (attachCommentToNodeRight sub comment)
+  | Layout.Meta (meta, sub) ->
+    Layout.Meta (meta, attachCommentToNodeRight sub comment)
   | layout ->
-       match Comment.category comment with
+    match Comment.category comment with
     | EndOfLine -> Layout.WithEOLComment (comment, layout)
     | _ -> inline ~postSpace:true layout (format_comment comment)
 
@@ -1372,10 +1360,8 @@ let rec attachCommentToNodeLeft comment layout =
     let lwrap, rwrap = config.wrap in
     let lwrap = Comment.wrap comment ^ " " ^ lwrap in
     Layout.Sequence ({config with wrap = (lwrap, rwrap)}, sub)
-  | Layout.SourceMap (loc, sub) ->
-     Layout.SourceMap (loc, attachCommentToNodeLeft comment sub )
-  | Layout.ForceBreak (sub) ->
-     Layout.ForceBreak (attachCommentToNodeLeft comment sub)
+  | Layout.Meta (meta, sub) ->
+     Layout.Meta (meta, attachCommentToNodeLeft comment sub)
   | layout ->
      Layout.Label (inlineLabel, format_comment comment, layout)
 
@@ -1410,32 +1396,33 @@ and perfectlyAttachComment comment = function
     let (newRight, comment) = perfectlyAttachComment comment right in
     let (newLeft, comment) = tryPerfectlyAttachComment left comment in
     Layout.Label (labelFormatter, newLeft, newRight), comment
-  | Layout.SourceMap (loc, subLayout) ->
+  | Layout.Meta (Layout.SourceMap loc, subLayout) ->
     if loc.loc_end.Lexing.pos_lnum = loc.loc_start.Lexing.pos_lnum &&
        comment.Comment.location.loc_start.Lexing.pos_cnum = loc.loc_end.Lexing.pos_cnum
     then
-      (Layout.SourceMap (loc, makeList ~inline:(true, true) ~break:Layout.Always
-                           [unbreaklayout (attachCommentToNodeRight subLayout comment)]),
-       None)
+      let layout = makeList ~inline:(true, true) ~break:Layout.Always
+          [unbreaklayout (attachCommentToNodeRight subLayout comment)]
+      in
+      (source_map ~loc layout, None)
     else
       let (layout, comment) = perfectlyAttachComment comment subLayout in
       begin match comment with
-        | None -> (Layout.SourceMap (loc, layout), None)
+        | None -> (source_map ~loc layout, None)
         | Some comment ->
           if comment.Comment.location.loc_end.Lexing.pos_cnum =
              loc.loc_start.Lexing.pos_cnum  then
-            (Layout.SourceMap (loc, attachCommentToNodeLeft comment layout), None)
+            (source_map ~loc (attachCommentToNodeLeft comment layout), None)
           else if comment.Comment.location.loc_start.Lexing.pos_cnum = loc.loc_end.Lexing.pos_cnum then
-            (Layout.SourceMap (loc, attachCommentToNodeRight layout comment), None)
+            (source_map ~loc (attachCommentToNodeRight layout comment), None)
           else
-            (Layout.SourceMap (loc, layout), Some comment)
+            (source_map ~loc layout, Some comment)
       end
   | Layout.WithEOLComment (c, sub) ->
     let (processed, consumed) = perfectlyAttachComment comment sub in
     (Layout.WithEOLComment (c, processed), consumed)
-  | Layout.ForceBreak layout ->
+  | Layout.Meta (meta, layout) ->
     let layout, comment = perfectlyAttachComment comment layout in
-    (Layout.ForceBreak layout, comment)
+    (Layout.Meta (meta, layout), comment)
   | layout -> (layout, Some comment)
 
 (** [insertComment layout comment] inserts comment into layout*)
@@ -1595,31 +1582,28 @@ let formatIndentedApplication headApplicationItem argApplicationItems =
 (* The loc, is an optional location or the returned app terms *)
 let formatAttachmentApplication finalWrapping (attachTo: (bool * Layout.t) option) (appTermItems, loc) =
   let partitioning = finalWrapping appTermItems in
-  let maybeSourceMap maybeLoc x =
-    match maybeLoc with
-      | None -> x
-      | Some loc -> Layout.SourceMap (loc, x)
-  in
   match partitioning with
     | None -> (
         match (appTermItems, attachTo) with
           | ([], _) -> raise (NotPossible "No app terms")
-          | ([hd], None) -> maybeSourceMap loc hd
-          | ([hd], (Some (useSpace, toThis))) -> label ~space:useSpace toThis (maybeSourceMap loc hd)
+          | ([hd], None) -> source_map ?loc hd
+          | ([hd], (Some (useSpace, toThis))) ->
+            label ~space:useSpace toThis (source_map ?loc hd)
           | (hd::tl, None) ->
-            maybeSourceMap loc (formatIndentedApplication hd tl)
+            source_map ?loc (formatIndentedApplication hd tl)
           | (hd::tl, (Some (useSpace, toThis))) ->
             label
               ~space:useSpace
               toThis
-              (maybeSourceMap loc (formatIndentedApplication hd tl))
+              (source_map ?loc (formatIndentedApplication hd tl))
       )
     | Some (attachedList, wrappedListy) -> (
         match (attachedList, attachTo) with
-          | ([], Some (useSpace, toThis)) -> label ~space:useSpace toThis (maybeSourceMap loc wrappedListy)
+        | ([], Some (useSpace, toThis)) ->
+          label ~space:useSpace toThis (source_map ?loc wrappedListy)
           | ([], None) ->
             (* Not Sure when this would happen *)
-            maybeSourceMap loc wrappedListy
+            source_map ?loc wrappedListy
           | (hd::tl, Some (useSpace, toThis)) ->
             (* TODO: Can't attach location to this - maybe rewrite anyways *)
             let attachedArgs = makeAppList attachedList in
@@ -1629,7 +1613,7 @@ let formatAttachmentApplication finalWrapping (attachTo: (bool * Layout.t) optio
           | (hd::tl, None) ->
             (* Args that are "attached to nothing" *)
             let appList = makeAppList attachedList in
-            maybeSourceMap loc (label ~space:true appList wrappedListy)
+            source_map ?loc (label ~space:true appList wrappedListy)
       )
 
 (*
@@ -1927,7 +1911,8 @@ let printer = object(self:'self)
   (* This form allows applicative functors. *)
   method longident_class_or_type_loc x = self#longident x.txt
   (* TODO: Fail if observing applicative functors for this form. *)
-  method longident_loc (x:Longident.t Location.loc) = Layout.SourceMap (x.loc, self#longident (x.txt))
+  method longident_loc (x:Longident.t Location.loc) =
+    source_map ~loc:x.loc (self#longident (x.txt))
   method constant ?(parens=true) = wrap (constant ~parens)
 
   method constant_string = wrap constant_string
@@ -1971,7 +1956,7 @@ let printer = object(self:'self)
           let normalized = makeList
               ~preSpace:true ~postSpace:true ~inline:(true, true)
               ~break:IfNeed ~sep:"=>" [lhs; rhs]
-          in Layout.SourceMap (x.ptyp_loc, normalized)
+          in source_map ~loc:x.ptyp_loc normalized
         | Ptyp_poly (sl, ct) ->
           let poly =
             makeList ~break:IfNeed [
@@ -1981,7 +1966,7 @@ let printer = object(self:'self)
               ];
               self#core_type ct;
             ]
-          in Layout.SourceMap (x.ptyp_loc, poly)
+          in source_map ~loc:x.ptyp_loc poly
         | _ -> self#non_arrowed_core_type x
 
   (* Same as core_type2 but can be aliased *)
@@ -1993,14 +1978,12 @@ let printer = object(self:'self)
         (self#attributes stdAttrs)
     else match (x.ptyp_desc) with
       | (Ptyp_alias (ct, s)) ->
-        Layout.SourceMap (
-          x.ptyp_loc,
+        source_map
+          ~loc:x.ptyp_loc
           (label
-            ~space:true
-            (self#core_type ct)
-            (makeList ~postSpace:true [atom "as"; atom ("'" ^ s)])
-          )
-        )
+             ~space:true
+             (self#core_type ct)
+             (makeList ~postSpace:true [atom "as"; atom ("'" ^ s)]))
       | _ -> self#core_type2 x
 
   method type_with_label (lbl, c) =
@@ -2068,7 +2051,7 @@ let printer = object(self:'self)
         | [] -> everythingButConstraints
         | hd::tl -> makeList ~break:IfNeed ~postSpace:true ~indent:0 ~inline:(true, true) (everythingButConstraints::hd::tl)
     in
-    (Layout.SourceMap (ptype_loc, everything))
+    source_map ~loc:ptype_loc everything
 
   method formatOneTypeExt prepend name assignToken te =
     let privateAtom = (atom "pri") in
@@ -2092,7 +2075,7 @@ let printer = object(self:'self)
              (Some (true, nameParamsEquals))
              (equalInitiatedSegments, None)
     in
-    Layout.SourceMap (te.ptyext_path.loc, everything)
+    source_map ~loc:(te.ptyext_path.loc) (everything)
 
   method type_extension_binding_segments {pext_kind; pext_loc; pext_attributes; pext_name} =
     let normalize lst = match lst with
@@ -2112,7 +2095,7 @@ let printer = object(self:'self)
         else
           makeList ~postSpace:true [atom "|"; lbl]
       in
-    let sourceMappedName = Layout.SourceMap (pext_name.loc, atom pext_name.txt) in
+    let sourceMappedName = source_map ~loc:(pext_name.loc) (atom pext_name.txt) in
     let resolved = match pext_kind with
       | Pext_decl (ctor_args, gadt) ->
         let formattedArgs = match ctor_args with
@@ -2164,7 +2147,7 @@ let printer = object(self:'self)
       | (ctorArgs, None) -> add_bar sourceMappedName pext_attributes (Some (normalize ctorArgs))
       | (ctorArgs, Some gadt) -> add_bar sourceMappedName pext_attributes (Some (normalize (ctorArgs@[gadt])))
     in
-    (Layout.SourceMap (pext_loc, everything))
+    (source_map ~loc:(pext_loc) (everything))
 
   (* shared by [Pstr_type,Psig_type]*)
   method type_def_list (rf, l) =
@@ -2173,7 +2156,7 @@ let printer = object(self:'self)
       let itm =
         self#formatOneTypeDef
           prepend
-          (Layout.SourceMap (td.ptype_name.loc, (atom td.ptype_name.txt)))
+          (source_map ~loc:(td.ptype_name.loc) ((atom td.ptype_name.txt)))
           (atom "=")
           td
       in
@@ -2264,7 +2247,7 @@ let printer = object(self:'self)
     in
 
     let prefix = if polymorphic then "`" else "" in
-    let sourceMappedName = Layout.SourceMap (pcd_name.loc, atom (prefix ^ pcd_name.txt)) in
+    let sourceMappedName = source_map ~loc:(pcd_name.loc) (atom (prefix ^ pcd_name.txt)) in
     let sourceMappedNameWithAttributes =
       if stdAttrs = [] then
         sourceMappedName
@@ -2281,15 +2264,15 @@ let printer = object(self:'self)
             | Pcstr_record _ -> add_bar_2 ~gadt constructorName (normalize args)
             | _ -> add_bar_2 constructorName (makeList [normalize args; gadt]))
     in
-    (Layout.SourceMap (pcd_loc, everything))
+    (source_map ~loc:(pcd_loc) (everything))
 
   method record_declaration ?assumeRecordLoc lbls =
     let recordRow pld =
       let hasPunning = recordRowIsPunned pld in
       let name = if hasPunning then
-          Layout.SourceMap (pld.pld_name.loc, makeList [atom pld.pld_name.txt;])
+          source_map ~loc:(pld.pld_name.loc) (makeList [atom pld.pld_name.txt;])
         else
-          Layout.SourceMap (pld.pld_name.loc, makeList [atom pld.pld_name.txt; atom ":"])
+          source_map ~loc:(pld.pld_name.loc) (makeList [atom pld.pld_name.txt; atom ":"])
       in
       let withMutable =
         match pld.pld_mutable with
@@ -2301,7 +2284,7 @@ let printer = object(self:'self)
         else
           label ~space:true withMutable (self#core_type pld.pld_type)
       in
-      Layout.SourceMap (pld.pld_loc, recordRow)
+      source_map ~loc:(pld.pld_loc) (recordRow)
     in
     let rows = List.map recordRow lbls in
     (* if a record has more than 2 rows, always break *)
@@ -2309,7 +2292,7 @@ let printer = object(self:'self)
     let rowList = makeList ~wrap:("{", "}") ~sep:"," ~postSpace:true ~break rows in
     match assumeRecordLoc with
     | None -> rowList
-    | Some loc -> Layout.SourceMap(loc, rowList)
+    | Some loc -> source_map ~loc:(loc) (rowList)
 
   (* Returns the type declaration partitioned into three segments - one
      suitable for appending to a label, the actual type manifest
@@ -2511,7 +2494,7 @@ let printer = object(self:'self)
           (* [ensureSingleTokenSticksToLabel] loses location information which is important
                when you are embedded inside a list and comments are to be interleaved around you.
                Therefore, we wrap the result in the correct [Layout.SourceMap].  *)
-          Layout.SourceMap (li.loc, ensureSingleTokenSticksToLabel (self#longident_loc li))
+          source_map ~loc:(li.loc) (ensureSingleTokenSticksToLabel (self#longident_loc li))
         | Ptyp_constr (li, l) ->
             (match l with
             | [{ptyp_desc = Ptyp_object (l, o) }] when isJsDotTLongIdent li.txt && List.length l > 0 ->
@@ -2519,14 +2502,14 @@ let printer = object(self:'self)
                  * {..} has a totally different meaning than Js.t({..}) *)
                 self#unparseObject ~withStringKeys:true l o
             | [{ptyp_desc = Ptyp_object (l, o) }] when not (isJsDotTLongIdent li.txt) ->
-                label (Layout.SourceMap (li.loc, self#longident_loc li))
+                label (source_map ~loc:(li.loc) (self#longident_loc li))
                   (self#unparseObject ~wrap:("(",")") l o)
             | _ ->
               (* small guidance: in `type foo = bar`, we're now at the `bar` part *)
 
               (* The single identifier has to be wrapped in a [ensureSingleTokenSticksToLabel] to
                  avoid (@see @avoidSingleTokenWrapping): *)
-              label (Layout.SourceMap (li.loc, self#longident_loc li))
+              label (source_map ~loc:(li.loc) (self#longident_loc li))
                 (makeTup (List.map self#core_type l)))
         | Ptyp_variant (l, closed, low) ->
           let pcd_loc = x.ptyp_loc in
@@ -2564,7 +2547,7 @@ let printer = object(self:'self)
         | Ptyp_poly (_, _) ->
             makeList ~wrap:("(",")") ~break:IfNeed [self#core_type x]
       in
-      Layout.SourceMap (x.ptyp_loc, result)
+      source_map ~loc:(x.ptyp_loc) (result)
   (* TODO: ensure that we have a form of desugaring that protects *)
   (* when final argument of curried pattern is a type constraint: *)
   (* | COLON non_arrowed_core_type EQUALGREATER expr
@@ -2616,7 +2599,7 @@ let printer = object(self:'self)
       [left; right]
 
   method pattern_without_or x =
-    let patternSourceMap pt layout = (Layout.SourceMap (pt.ppat_loc, layout)) in
+    let patternSourceMap pt layout = (source_map ~loc:(pt.ppat_loc) (layout)) in
     (* TODOATTRIBUTES: Handle the stdAttrs here *)
     let {arityAttrs} = partitionAttributes x.ppat_attributes in
     match x.ppat_desc with
@@ -2630,17 +2613,17 @@ let printer = object(self:'self)
             (patternSourceMap p pattern_with_precedence)
             (makeList ~postSpace:true [
               atom "as";
-              (Layout.SourceMap (s.loc, (protectIdentifier s.txt)))
+              (source_map ~loc:(s.loc) ((protectIdentifier s.txt)))
             ]) (* RA*)
       | Ppat_variant (l, Some p) ->
           if arityAttrs != [] then
             raise (NotPossible "Should never see embedded attributes on poly variant")
           else
             let layout = (self#constructor_pattern ~polyVariant:true ~arityIsClear:true (atom ("`" ^ l)) p) in
-            Layout.SourceMap (x.ppat_loc, layout)
+            source_map ~loc:(x.ppat_loc) (layout)
       | Ppat_lazy p -> label ~space:true (atom "lazy") (self#simple_pattern p)
       | Ppat_construct (({txt} as li), po) when not (txt = Lident "::")-> (* FIXME The third field always false *)
-          let liSourceMapped = Layout.SourceMap (li.loc, (self#longident_loc li)) in
+          let liSourceMapped = source_map ~loc:(li.loc) ((self#longident_loc li)) in
           let formattedConstruction = match po with
             (* TODO: Check the explicit_arity field on the pattern/constructor
                attributes to determine if should desugar to an *actual* tuple. *)
@@ -2655,7 +2638,7 @@ let printer = object(self:'self)
             | None ->
                 liSourceMapped
           in
-            Layout.SourceMap (x.ppat_loc, formattedConstruction)
+            source_map ~loc:(x.ppat_loc) (formattedConstruction)
       | _ -> self#simple_pattern x
 
   method pattern x =
@@ -2701,12 +2684,12 @@ let printer = object(self:'self)
                * information about the contents of the pattern such as tokens etc,
                * in order to get comments to be distributed correctly.*)
 
-              Layout.SourceMap (loc, (atom x))
+              source_map ~loc:(loc) ((atom x))
           | Ppat_construct (({txt=Lident "::"}), po) ->
                 self#patternList x (* LIST PATTERN *)
           | Ppat_construct (({txt} as li), None) ->
-              let liSourceMapped = Layout.SourceMap (li.loc, (self#longident_loc li)) in
-              Layout.SourceMap (x.ppat_loc, liSourceMapped)
+              let liSourceMapped = source_map ~loc:(li.loc) ((self#longident_loc li)) in
+              source_map ~loc:(x.ppat_loc) (liSourceMapped)
           | Ppat_any -> atom "_"
           | Ppat_var ({loc; txt = txt}) ->
             (*
@@ -2730,7 +2713,7 @@ let printer = object(self:'self)
                  let oneArgShouldWrapToAlignWith theFunctionNameBinding => theFunctionNameBinding;
 
              *)
-              Layout.SourceMap (loc, (protectIdentifier txt))
+              source_map ~loc:(loc) ((protectIdentifier txt))
           | Ppat_array l ->
               self#patternArray l
           | Ppat_unpack (s) ->
@@ -2763,7 +2746,7 @@ let printer = object(self:'self)
                makeList ~postSpace:true [atom "exception"; self#simple_pattern p]
           | _ -> formatPrecedence (self#pattern x) (* May have a redundant sourcemap *)
         in
-        Layout.SourceMap (x.ppat_loc, itm)
+        source_map ~loc:(x.ppat_loc) (itm)
 
   method label_exp lbl opt pat =
     let term = self#constrained_pattern pat in
@@ -3211,7 +3194,7 @@ let printer = object(self:'self)
         let ifFalse = self#unparseResolvedRule (
           self#ensureContainingRule ~withPrecedence:(Token ":") ~reducesAfterRight:ff ()
         ) in
-        let withQuestion = Layout.SourceMap (e.pexp_loc, makeList ~postSpace:true [testItm; atom "?"]) in
+        let withQuestion = source_map ~loc:(e.pexp_loc) (makeList ~postSpace:true [testItm; atom "?"]) in
         let trueFalseBranches =
           makeList ~inline:(true, true) ~break:IfNeed ~sep:":" ~postSpace:true ~preSpace:true [ifTrue; ifFalse]
         in
@@ -3454,9 +3437,9 @@ let printer = object(self:'self)
     let rec extract_apps args = function
       | { pmod_desc = Pmod_apply (me1, me2) } ->
         extract_apps
-          (Layout.SourceMap (me2.pmod_loc, self#simple_module_expr me2) :: args) me1
+          (source_map ~loc:(me2.pmod_loc) (self#simple_module_expr me2) :: args) me1
       | me ->
-        let head = Layout.SourceMap (me.pmod_loc, self#module_expr me) in
+        let head = source_map ~loc:(me.pmod_loc) (self#module_expr me) in
         if args = [] then head else label head (makeTup args)
     in
     extract_apps [] x
@@ -3644,7 +3627,7 @@ let printer = object(self:'self)
   method curriedConstructorPatternsAndReturnVal cl =
     let rec argsAndReturn args = function
       | { pcl_desc = Pcl_fun (label, eo, p, e); pcl_attributes = [] } ->
-        let arg = Layout.SourceMap (p.ppat_loc, self#label_exp label eo p) in
+        let arg = source_map ~loc:(p.ppat_loc) (self#label_exp label eo p) in
         argsAndReturn (arg :: args) e
       | xx ->
         if args = [] then (None, xx) else (Some (makeTup (List.rev args)), xx)
@@ -3674,7 +3657,7 @@ let printer = object(self:'self)
         | _ -> ([], xx)
     in
     let prepare_arg = function
-      | `Value (l,eo,p) -> Layout.SourceMap (p.ppat_loc, self#label_exp l eo p)
+      | `Value (l,eo,p) -> source_map ~loc:(p.ppat_loc) (self#label_exp l eo p)
       | `Type nt -> atom ("type " ^ nt)
     in
     match extract_args x with
@@ -3755,7 +3738,7 @@ let printer = object(self:'self)
     let appTerms = self#unparseExprApplicationItems funWithNewTypes in
     let locallyAbstractTypes = (List.map atom absVars) in
     let typeLayout =
-      Layout.SourceMap (bodyType.ptyp_loc, (self#core_type bodyType)) in
+      source_map ~loc:(bodyType.ptyp_loc) ((self#core_type bodyType)) in
     let polyType =
       label
         ~space:true
@@ -3795,7 +3778,7 @@ let printer = object(self:'self)
     in
     match (argsList, return.pexp_desc) with
       | ([], Pexp_constraint (e, ct)) ->
-          let typeLayout = Layout.SourceMap (ct.ptyp_loc, (self#core_type ct)) in
+          let typeLayout = source_map ~loc:(ct.ptyp_loc) ((self#core_type ct)) in
           let appTerms = self#unparseExprApplicationItems e in
           self#formatSimplePatternBinding prefixText patternList (Some typeLayout) appTerms
       | ([], _) ->
@@ -3822,7 +3805,7 @@ let printer = object(self:'self)
     in
     match (args, return.pcl_desc) with
       | (None, Pcl_constraint (e, ct)) ->
-          let typeLayout = Layout.SourceMap (ct.pcty_loc, (self#class_constructor_type ct)) in
+          let typeLayout = source_map ~loc:(ct.pcty_loc) ((self#class_constructor_type ct)) in
           self#formatSimplePatternBinding prefixText patternList (Some typeLayout)
             (self#classExpressionToFormattedApplicationItems e, None)
       | (None, _) ->
@@ -3840,7 +3823,7 @@ let printer = object(self:'self)
     let body = match x.pvb_pat.ppat_desc with
       | (Ppat_var {txt}) ->
         self#wrappedBinding prefixText ~arrow:"=>"
-          (Layout.SourceMap (x.pvb_pat.ppat_loc, self#simple_pattern x.pvb_pat))
+          (source_map ~loc:(x.pvb_pat.ppat_loc) (self#simple_pattern x.pvb_pat))
           [] x.pvb_expr
       (*
          Ppat_constraint is used in bindings of the form
@@ -3880,7 +3863,7 @@ let printer = object(self:'self)
                  );
           *)
           let layoutPattern =
-            Layout.SourceMap (x.pvb_pat.ppat_loc, (self#simple_pattern p)) in
+            source_map ~loc:(x.pvb_pat.ppat_loc) ((self#simple_pattern p)) in
           let leadingAbsTypesAndExpr = self#leadingCurriedAbstractTypes x.pvb_expr in
           match (p.ppat_desc, ty.ptyp_desc, leadingAbsTypesAndExpr) with
             | (Ppat_var s,
@@ -3930,7 +3913,7 @@ let printer = object(self:'self)
                 absVars
                 nonVarifiedExprType
             | _ ->
-              let typeLayout = Layout.SourceMap (ty.ptyp_loc, (self#core_type ty)) in
+              let typeLayout = source_map ~loc:(ty.ptyp_loc) ((self#core_type ty)) in
               let appTerms = self#unparseExprApplicationItems x.pvb_expr in
               self#formatSimplePatternBinding
                 prefixText
@@ -3940,11 +3923,11 @@ let printer = object(self:'self)
         )
       | (_) ->
           let layoutPattern =
-            Layout.SourceMap (x.pvb_pat.ppat_loc, self#pattern x.pvb_pat) in
+            source_map ~loc:(x.pvb_pat.ppat_loc) (self#pattern x.pvb_pat) in
           let appTerms = self#unparseExprApplicationItems x.pvb_expr in
           self#formatSimplePatternBinding prefixText layoutPattern None appTerms
     in
-    self#attach_std_item_attrs x.pvb_attributes (Layout.SourceMap (x.pvb_loc, body))
+    self#attach_std_item_attrs x.pvb_attributes (source_map ~loc:(x.pvb_loc) (body))
 
   (* Ensures that the constraint is formatted properly for sake of function
      binding (formatted without arrows)
@@ -3953,14 +3936,14 @@ let printer = object(self:'self)
   method normalizeFunctionArgsConstraint argsList return =
     match return.pexp_desc with
       | Pexp_constraint (e, ct) ->
-        let typeLayout = Layout.SourceMap (ct.ptyp_loc, (self#non_arrowed_non_simple_core_type ct)) in
+        let typeLayout = source_map ~loc:(ct.ptyp_loc) ((self#non_arrowed_non_simple_core_type ct)) in
         (argsList@[formatJustTheTypeConstraint typeLayout], e)
       | _ -> (argsList, return)
 
   method normalizeConstructorArgsConstraint argsList return =
     match return.pcl_desc with
       | Pcl_constraint (e, ct) when return.pcl_attributes = [] ->
-        let typeLayout = Layout.SourceMap (ct.pcty_loc, (self#non_arrowed_class_constructor_type ct)) in
+        let typeLayout = source_map ~loc:(ct.pcty_loc) ((self#non_arrowed_class_constructor_type ct)) in
         (argsList@[formatJustTheTypeConstraint typeLayout], e)
       | _ -> (argsList, return)
 
@@ -4004,7 +3987,7 @@ let printer = object(self:'self)
          * first brace. *)
          let bindingsLayout = self#bindings (rf, l) in
          let bindingsLoc = self#bindingsLocationRange l in
-         let bindingsSourceMapped = Layout.SourceMap (bindingsLoc, bindingsLayout) in
+         let bindingsSourceMapped = source_map ~loc:(bindingsLoc) (bindingsLayout) in
          bindingsSourceMapped::(self#letList e)
       | ([], Pexp_open (ovf, lid, e))
           (* Add this when check to make sure these are handled as regular "simple expressions" *)
@@ -4017,7 +4000,7 @@ let printer = object(self:'self)
         (* Just like the bindings, have to synthesize a location since the
          * Pexp location is parsed (potentially) beginning with the open
          * brace {} in the let sequence. *)
-        let openSourceMapped = Layout.SourceMap (lid.loc, openLayout) in
+        let openSourceMapped = source_map ~loc:(lid.loc) (openLayout) in
         openSourceMapped::(self#letList e)
       | ([], Pexp_letmodule (s, me, e)) ->
           let prefixText = "module" in
@@ -4033,7 +4016,7 @@ let printer = object(self:'self)
           (* Just like the bindings, have to synthesize a location since the
            * Pexp location is parsed (potentially) beginning with the open
            * brace {} in the let sequence. *)
-          let letModuleSourceMapped = Layout.SourceMap (letModuleLoc, letModuleLayout) in
+          let letModuleSourceMapped = source_map ~loc:(letModuleLoc) (letModuleLayout) in
            letModuleSourceMapped::(self#letList e)
       | ([], Pexp_letexception (extensionConstructor, expr)) ->
           let exc = self#exception_declaration extensionConstructor in
@@ -4051,14 +4034,14 @@ let printer = object(self:'self)
           (* It's kind of difficult to synthesize a location here in the case
            * where this is the first expression in the braces. We could consider
            * deeply inspecting the leftmost token/term in the expression. *)
-          let e1SourceMapped = Layout.SourceMap (e1.pexp_loc, e1Layout) in
+          let e1SourceMapped = source_map ~loc:(e1.pexp_loc) (e1Layout) in
           (e1SourceMapped :: self#letList e2)
       | _ ->
         match expression_not_immediate_extension_sugar expr with
         | Some (extension, {pexp_attributes = []; pexp_desc = Pexp_let (rf, l, e)}) ->
           let bindingsLayout = self#bindings ~extension (rf, l) in
           let bindingsLoc = self#bindingsLocationRange l in
-          let bindingsSourceMapped = Layout.SourceMap (bindingsLoc, bindingsLayout) in
+          let bindingsSourceMapped = source_map ~loc:(bindingsLoc) (bindingsLayout) in
           bindingsSourceMapped::(self#letList e)
         | Some (extension, expr) ->
           [self#attach_std_item_attrs ~extension [] (self#unparseExpr expr)]
@@ -4069,7 +4052,7 @@ let printer = object(self:'self)
              special forms above whereas lower level recursive calls may be of
              any form. *)
           let exprTermLayout = self#unparseExpr expr in
-          let exprTermSourceMapped = Layout.SourceMap (expr.pexp_loc, exprTermLayout) in
+          let exprTermSourceMapped = source_map ~loc:(expr.pexp_loc) (exprTermLayout) in
           [exprTermSourceMapped]
 
   method constructor_expression ?(polyVariant=false) ~arityIsClear stdAttrs ctor eo =
@@ -4279,7 +4262,7 @@ let printer = object(self:'self)
               label
                 ~space:true
                 switchWith
-                (Layout.SourceMap (estimatedBracePoint, (makeList ~indent:settings.trySwitchIndent ~wrap:("{", "}") ~break:Always_rec ~postSpace:true cases)))
+                (source_map ~loc:(estimatedBracePoint) ((makeList ~indent:settings.trySwitchIndent ~wrap:("{", "}") ~break:Always_rec ~postSpace:true cases)))
             )
           (* These should have already been handled and we should never havgotten this far. *)
           | Pexp_setinstvar (s, e) -> raise (Invalid_argument "Cannot handle setinstvar here - call unparseExpr")
@@ -4301,7 +4284,7 @@ let printer = object(self:'self)
                label
                  ~space:true
                  switchWith
-                 (Layout.SourceMap (estimatedBracePoint, (makeList ~indent:settings.trySwitchIndent ~wrap:("{", "}") ~break:Always_rec ~postSpace:true cases)))
+                 (source_map ~loc:(estimatedBracePoint) ((makeList ~indent:settings.trySwitchIndent ~wrap:("{", "}") ~break:Always_rec ~postSpace:true cases)))
              in
              Some lbl
           | Pexp_ifthenelse (e1, e2, eo) ->
@@ -4352,7 +4335,7 @@ let printer = object(self:'self)
               let if_ = atom (add_extension_sugar "if" extension) in
               let cond = self#parenthesized_expr e1 in
               label ~space:true
-                (Layout.SourceMap (e1.pexp_loc, (label ~space:true if_ cond)))
+                (source_map ~loc:(e1.pexp_loc) ((label ~space:true if_ cond)))
                 (makeLetSequence (self#letList e2))
             in
             Some (sequence init blocks)
@@ -4408,7 +4391,7 @@ let printer = object(self:'self)
         in
         match itm with
           | None -> None
-          | Some i -> Some (Layout.SourceMap (x.pexp_loc, i))
+          | Some i -> Some (source_map ~loc:(x.pexp_loc) (i))
 
   method potentiallyConstrainedExpr x =
     match x.pexp_desc with
@@ -4460,7 +4443,7 @@ let printer = object(self:'self)
     | (Pexp_apply (eFun, _)) -> (
       match printedStringAndFixityExpr eFun with
         | AlmostSimplePrefix _ ->
-          Layout.SourceMap (x.pexp_loc, formatPrecedence (self#simplifyUnparseExpr x))
+          source_map ~loc:(x.pexp_loc) (formatPrecedence (self#simplifyUnparseExpr x))
         | UnaryPlusPrefix _
         | UnaryMinusPrefix _
         | UnaryNotPrefix _
@@ -4558,7 +4541,7 @@ let printer = object(self:'self)
                 firstArg tl returnedAppTerms
             in
             if appendComma then makeList [labelExpr; comma] else labelExpr
-      in Layout.SourceMap (totalRowLoc, theRow)
+      in source_map ~loc:(totalRowLoc) (theRow)
     in
     let rec getRows l =
       match l with
@@ -4583,7 +4566,7 @@ let printer = object(self:'self)
             formatAttachmentApplication applicationFinalWrapping (Some (false, (atom "..."))) appTerms in
           if l == [] then firstRowContents else makeList [firstRowContents; atom ","]
         ) in
-        Layout.SourceMap (withRecord.pexp_loc, firstRow)::(getRows l)
+        source_map ~loc:(withRecord.pexp_loc) (firstRow)::(getRows l)
     in
     let break = if !forceBreak then Layout.Always else Layout.IfNeed in
     let (left, right) = wrap in
@@ -4828,7 +4811,7 @@ let printer = object(self:'self)
       in
       match item with
         | None -> None
-        | Some i -> Some (Layout.SourceMap (x.pexp_loc, i))
+        | Some i -> Some (source_map ~loc:(x.pexp_loc) (i))
 
   method formatChildren children processedRev =
     match children with
@@ -5096,7 +5079,7 @@ let printer = object(self:'self)
       let (firstToken, pattern, patternAux) = self#class_opening class_keyword txt pci_virt ls in
       let classBinding = self#wrappedClassBinding firstToken pattern patternAux x.pci_expr in
       let itm = self#attach_std_item_attrs x.pci_attributes classBinding in
-      Layout.SourceMap (pci_loc, itm)
+      source_map ~loc:(pci_loc) (itm)
     in
     (match l with
       | [] -> raise (NotPossible "Class definitions will have at least one item.")
@@ -5169,7 +5152,7 @@ let printer = object(self:'self)
           ~preSpace:true ~postSpace:true ~inline:(true, true)
         [makeCommaBreakableListSurround "(" ")" params; return]
       in
-      Layout.SourceMap (x.pcty_loc, normalized)
+      source_map ~loc:(x.pcty_loc) (normalized)
     | _ ->
       (* Unfortunately, we have to have final components of a class_constructor_type
          be prefixed with the `new` keyword.  Hopefully this is temporary. *)
@@ -5179,7 +5162,7 @@ let printer = object(self:'self)
     match x.pcty_desc with
     | Pcty_arrow (l, co, cl) ->
       let normalized = formatPrecedence (self#class_constructor_type x) in
-      Layout.SourceMap (x.pcty_loc, normalized)
+      source_map ~loc:(x.pcty_loc) (normalized)
     | _ -> self#class_instance_type x
 
   method class_field x =
@@ -5286,7 +5269,7 @@ let printer = object(self:'self)
               leadingAbstractVars
               nonVarifiedExprType
           | Pexp_poly (e, Some ct) ->
-            let typeLayout = Layout.SourceMap (ct.ptyp_loc, (self#core_type ct)) in
+            let typeLayout = source_map ~loc:(ct.ptyp_loc) ((self#core_type ct)) in
             let appTerms = self#unparseExprApplicationItems e in
             self#formatSimplePatternBinding methodText (atom s.txt) (Some typeLayout) appTerms
           (* This form means that there is no type constraint - it's a strange node name.*)
@@ -5315,7 +5298,7 @@ let printer = object(self:'self)
            this case *)
         self#item_extension e
     in
-    Layout.SourceMap (x.pcf_loc, itm)
+    source_map ~loc:(x.pcf_loc) (itm)
 
   method class_self_pattern_and_structure {pcstr_self = p; pcstr_fields = l} =
     let fields = List.map self#class_field l in
@@ -5324,7 +5307,7 @@ let printer = object(self:'self)
     match (p.ppat_attributes, p.ppat_desc) with
       | ([], Ppat_var ({loc; txt = "this"})) -> fields
       | _ ->
-          Layout.SourceMap (p.ppat_loc, (label ~space:true (atom "as") (self#pattern p)))
+          source_map ~loc:(p.ppat_loc) ((label ~space:true (atom "as") (self#pattern p)))
           ::fields
 
   method simple_class_expr x =
@@ -5355,7 +5338,7 @@ let printer = object(self:'self)
           makeList ~wrap:("{", "}") ~inline:(true, false) ~postSpace:true ~break:Always_rec (List.map semiTerminated rows)
         | Pcl_extension e -> self#extension e
         | _ -> formatPrecedence (self#class_expr x)
-     in Layout.SourceMap (x.pcl_loc, itm)
+     in source_map ~loc:(x.pcl_loc) (itm)
 
   method classExprLetsAndRest x =
     match x.pcl_desc with
@@ -5367,7 +5350,7 @@ let printer = object(self:'self)
          * first brace. *)
          let bindingsLayout = (self#bindings (rf, l)) in
          let bindingsLoc = self#bindingsLocationRange l in
-         let bindingsSourceMapped = Layout.SourceMap (bindingsLoc, bindingsLayout) in
+         let bindingsSourceMapped = source_map ~loc:(bindingsLoc) (bindingsLayout) in
          bindingsSourceMapped::(self#classExprLetsAndRest ce)
       | _ -> [self#class_expr x]
 
@@ -5425,20 +5408,19 @@ let printer = object(self:'self)
       let signatureItems = List.filter self#shouldDisplaySigItem signatureItems in
       let first = List.nth signatureItems 0 in
       let last = List.nth signatureItems (List.length signatureItems - 1) in
-      Layout.SourceMap (
-        {loc_start=first.psig_loc.loc_start; loc_end=last.psig_loc.loc_end; loc_ghost=false},
-        makeList
-          ~newlinesAboveComments:1
-          ~newlinesAboveItems:1
-          ~newlinesAboveDocComments:1
-          ~renderFinalSep:true
-          ~postSpace:true
-          ~break:Always_rec
-          ~indent:0
-          ~inline:(true, false)
-          ~sep:";"
-          (List.map self#signature_item signatureItems)
-      )
+      source_map
+        ~loc:{loc_start=first.psig_loc.loc_start; loc_end=last.psig_loc.loc_end; loc_ghost=false}
+        (makeList
+           ~newlinesAboveComments:1
+           ~newlinesAboveItems:1
+           ~newlinesAboveDocComments:1
+           ~renderFinalSep:true
+           ~postSpace:true
+           ~break:Always_rec
+           ~indent:0
+           ~inline:(true, false)
+           ~sep:";"
+           (List.map self#signature_item signatureItems))
 
   method signature_item x :Layout.t =
     let item: Layout.t =
@@ -5473,7 +5455,7 @@ let printer = object(self:'self)
                 ([(self#class_constructor_type x.pci_expr)], None)
               in
               let itm = self#attach_std_item_attrs x.pci_attributes withColon in
-              Layout.SourceMap (pci_loc, itm)
+              source_map ~loc:(pci_loc) (itm)
             in
             makeNonIndentedBreakingList (
               match l with
@@ -5543,7 +5525,7 @@ let printer = object(self:'self)
         | Psig_extension (e, a) ->
           self#attach_std_item_attrs a (self#item_extension e)
     in
-    Layout.SourceMap (x.psig_loc, item)
+    source_map ~loc:(x.psig_loc) (item)
 
   method non_arrowed_module_type x =
     match x.pmty_desc with
@@ -5620,7 +5602,7 @@ let printer = object(self:'self)
             | Pwith_type (li, td) ->
                 self#formatOneTypeDef
                   typeAtom
-                  (Layout.SourceMap (li.loc, (self#longident_loc li)))
+                  (source_map ~loc:(li.loc) ((self#longident_loc li)))
                   eqAtom
                   td
             | Pwith_module (li, li2) ->
@@ -5628,7 +5610,7 @@ let printer = object(self:'self)
             | Pwith_typesubst td ->
                 self#formatOneTypeDef
                   typeAtom
-                  (Layout.SourceMap (td.ptype_name.loc, (atom td.ptype_name.txt)))
+                  (source_map ~loc:(td.ptype_name.loc) ((atom td.ptype_name.txt)))
                   destrAtom
                   td
             | Pwith_modsubst (s, li2) -> modSub (atom s.txt) li2 ":="
@@ -5649,7 +5631,7 @@ let printer = object(self:'self)
         (* Seems like an infinite loop just waiting to happen. *)
         | _ -> self#non_arrowed_module_type x
     in
-    Layout.SourceMap (x.pmty_loc, pmty)
+    source_map ~loc:(x.pmty_loc) (pmty)
 
   method simple_module_expr x = match x.pmod_desc with
     | Pmod_unpack e ->
@@ -5702,21 +5684,19 @@ let printer = object(self:'self)
       let structureItems = List.filter self#shouldDisplayStructureItem structureItems in
       let first = List.nth structureItems 0 in
       let last = List.nth structureItems (List.length structureItems - 1) in
-      Layout.SourceMap (
-        {loc_start=first.pstr_loc.loc_start; loc_end=last.pstr_loc.loc_end; loc_ghost=false},
-        makeList
-          ~newlinesAboveComments:1
-          ~newlinesAboveItems:1
-          ~newlinesAboveDocComments:1
-          ~renderFinalSep:true
-          ~postSpace:true
-          ~break:Always_rec
-          ~indent:0
-          ~inline:(true, false)
-          ~sep:";"
-          (List.map self#structure_item structureItems)
-      )
-
+      source_map
+        ~loc:{loc_start=first.pstr_loc.loc_start; loc_end=last.pstr_loc.loc_end; loc_ghost=false}
+        (makeList
+           ~newlinesAboveComments:1
+           ~newlinesAboveItems:1
+           ~newlinesAboveDocComments:1
+           ~renderFinalSep:true
+           ~postSpace:true
+           ~break:Always_rec
+           ~indent:0
+           ~inline:(true, false)
+           ~sep:";"
+           (List.map self#structure_item structureItems))
 
   (*
      How do modules become parsed?
@@ -5867,7 +5847,7 @@ let printer = object(self:'self)
              item does. *)
           self#attach_std_item_attrs a (self#item_extension e)
     ) in
-    Layout.SourceMap(term.pstr_loc, item)
+    source_map ~loc:(term.pstr_loc) (item)
 
   method type_extension te =
     let formatOneTypeExtStandard prepend ({ptyext_path} as te) =
@@ -5978,19 +5958,18 @@ let printer = object(self:'self)
         let withoutBars = appendLabelToLast orsWithWhereAndArrowOnLast rhs in
         makeList ~break:Always_rec ~inline:(true, true) (List.map bar withoutBars)
       in
-        Layout.SourceMap (
+      source_map
+        ~loc:(
           (* Fake shift the location to accomodate for the bar, to make sure
            * the wrong comments don't make their way past the next bar. *)
           expandLocation ~expand:(0, 0) {
             loc_start = pc_lhs.ppat_loc.loc_start;
             loc_end = pc_rhs.pexp_loc.loc_end;
             loc_ghost = false;
-          },
+          })
           row
-        )
-
     in
-    (List.map case_row l)
+    List.map case_row l
 
   (* Formats a list of a single expr param in such a way that the parens of the function or
    * (poly)-variant application and the wrapping of the param stick together when the layout breaks.
@@ -6036,7 +6015,7 @@ let printer = object(self:'self)
       | Optional lbl ->
         label (atom (namedArgSym ^ lbl ^ "=?")) term
     in
-    Layout.SourceMap (e.pexp_loc, param)
+    source_map ~loc:(e.pexp_loc) (param)
 
   method label_x_expression_params xs =
     let xs = (match xs with
@@ -6097,7 +6076,7 @@ let printer = object(self:'self)
           | Nolabel -> cbArgs
         in
 
-        let theFunc = Layout.SourceMap (funExpr.pexp_loc, makeList ~wrap:("", "(") [self#simplifyUnparseExpr funExpr]) in
+        let theFunc = source_map ~loc:(funExpr.pexp_loc) (makeList ~wrap:("", "(") [self#simplifyUnparseExpr funExpr]) in
         let formattedFunAppl = begin match self#letList retCb with
         | [x] ->
           (* force breaks for test assertion style callbacks, e.g.
@@ -6182,7 +6161,7 @@ let printer = object(self:'self)
         end in
         maybeJSXAttr @ [formattedFunAppl]
     | `NormalFunAppl args ->
-        let theFunc = Layout.SourceMap (funExpr.pexp_loc, self#simplifyUnparseExpr funExpr) in
+        let theFunc = source_map ~loc:(funExpr.pexp_loc) (self#simplifyUnparseExpr funExpr) in
         (*reset here only because [function,match,try,sequence] are lower priority*)
         let theArgs = self#reset#label_x_expression_params args in
         maybeJSXAttr @ [label theFunc theArgs]

@@ -9,13 +9,16 @@ module Comment = Reason_comment
  *
  * The final representation is rendered using Easy_format.
  *)
+type meta =
+  | SourceMap of Location.t
+  | ForceBreak
+
 type t =
-  | SourceMap      of Location.t * t (* a layout with location info *)
+  | Meta           of meta * t (* a layout with location info *)
   | WithEOLComment of Comment.t * t (* a layout with comment attached *)
   | Sequence       of listConfig * t list
   | Label          of easyFormatLabelFormatter * t * t
   | Easy           of Easy_format.t
-  | ForceBreak     of t
 
 and listConfig = {
   (* Newlines above items that do not have any comments immediately above it.
@@ -69,14 +72,19 @@ let indent_more indent = indent ^ "  "
 
 let dump ppf layout =
   let rec traverse indent = function
-    | SourceMap (loc, layout) ->
-      Format.fprintf ppf "%s [%d (%d:%d)-%d (%d:%d)]\n" indent
-        loc.loc_start.Lexing.pos_cnum
-        loc.loc_start.Lexing.pos_lnum
-        (loc.loc_start.Lexing.pos_cnum - loc.loc_start.Lexing.pos_bol)
-        loc.loc_end.Lexing.pos_cnum
-        loc.loc_end.Lexing.pos_lnum
-        (loc.loc_end.Lexing.pos_cnum - loc.loc_end.Lexing.pos_bol);
+    | Meta (meta, layout) ->
+      begin match meta with
+        | SourceMap loc ->
+          Format.fprintf ppf "%s [%d (%d:%d)-%d (%d:%d)]\n" indent
+            loc.loc_start.Lexing.pos_cnum
+            loc.loc_start.Lexing.pos_lnum
+            (loc.loc_start.Lexing.pos_cnum - loc.loc_start.Lexing.pos_bol)
+            loc.loc_end.Lexing.pos_cnum
+            loc.loc_end.Lexing.pos_lnum
+            (loc.loc_end.Lexing.pos_cnum - loc.loc_end.Lexing.pos_bol)
+        | ForceBreak ->
+          Format.fprintf ppf "%s ForceBreak\n" indent
+      end;
       traverse (indent^"  ") layout
     | Sequence (config, layout_list) ->
       let break = match config.break with
@@ -107,9 +115,6 @@ let dump ppf layout =
       traverse indent' right;
     | Easy e ->
       Format.fprintf ppf "%s Easy: %s \n" indent (string_of_easy_format e)
-    | ForceBreak t ->
-      Format.fprintf ppf "%s Forcebreak\n" indent;
-      traverse indent t
   in
   traverse "" layout
 
@@ -206,12 +211,12 @@ let to_easy_format ?(indent_body=0) layout =
       )
     | Label (labelFormatter, left, right) ->
       labelFormatter (traverse left) (traverse right)
-    | SourceMap (_, subLayout) ->
+    | Meta (SourceMap _, subLayout) ->
       traverse subLayout
     | WithEOLComment (_, sub) ->
       traverse sub
     | Easy e -> e
-    | ForceBreak t ->
+    | Meta (ForceBreak, t) ->
       force_break := true;
       traverse t
   in
@@ -220,7 +225,7 @@ let to_easy_format ?(indent_body=0) layout =
 (** [has_comment layout] checks if a layout has comment attached to it *)
 let rec has_comment = function
   | WithEOLComment (_, _) -> true
-  | SourceMap (_, sub) -> has_comment sub
+  | Meta (_, sub) -> has_comment sub
   | _ -> false
 
 
@@ -242,9 +247,9 @@ let get_location layout =
       let leftLoc = loop left in
       let rightLoc = loop right in
       union leftLoc rightLoc
-    | SourceMap (loc, _) ->
+    | Meta (SourceMap loc, _) ->
       Some loc
-    | WithEOLComment (_, sub) ->
+    | WithEOLComment (_, sub) | Meta (ForceBreak, sub) ->
       loop sub
     | _ -> None
   in
@@ -267,7 +272,7 @@ struct
 
   let source_map ?(loc=Location.none) layout =
     if loc <> Location.none
-    then SourceMap (loc, layout)
+    then Meta (SourceMap loc, layout)
     else layout
 
   let atom ?loc str =
@@ -275,7 +280,7 @@ struct
     let layout = Easy (Easy_format.Atom(str, labelStringStyle)) in
     let layout = source_map ?loc layout in
     if String.contains str '\n'
-    then ForceBreak layout
+    then Meta (ForceBreak, layout)
     else layout
 
   let makeList
