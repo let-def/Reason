@@ -279,7 +279,7 @@ struct
     let labelStringStyle = { Easy_format.atom_style = Some "atomClss" } in
     let layout = Easy (Easy_format.Atom(str, labelStringStyle)) in
     let layout = source_map ?loc layout in
-    if String.contains str '\n'
+    if Syntax_util.is_line_comment str
     then Meta (ForceBreak, layout)
     else layout
 
