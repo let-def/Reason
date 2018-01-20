@@ -15,6 +15,7 @@ type t =
   | Sequence       of listConfig * t list
   | Label          of easyFormatLabelFormatter * t * t
   | Easy           of Easy_format.t
+  | ForceBreak     of t
 
 and listConfig = {
   (* Newlines above items that do not have any comments immediately above it.
@@ -106,6 +107,9 @@ let dump ppf layout =
       traverse indent' right;
     | Easy e ->
       Format.fprintf ppf "%s Easy: %s \n" indent (string_of_easy_format e)
+    | ForceBreak t ->
+      Format.fprintf ppf "%s Forcebreak\n" indent;
+      traverse indent t
   in
   traverse "" layout
 
@@ -184,11 +188,21 @@ let to_easy_format ?(indent_body=0) layout =
     separator_style = None;
     closing_style = None;
   } in
+  let force_break = ref false in
   let rec traverse = function
     | Sequence (listConfig, subLayouts) ->
+      let force_break' = !force_break in
+      force_break := false;
+      let sub = List.map traverse subLayouts in
+      let listConfig =
+        match listConfig.break with
+        | Never when !force_break -> {listConfig with break = IfNeed}
+        | _ -> listConfig
+      in
+      force_break := !force_break && force_break';
       Easy_format.List (
-        config_to_easy_format base_param listConfig ,
-        List.map traverse subLayouts
+        config_to_easy_format base_param listConfig,
+        sub
       )
     | Label (labelFormatter, left, right) ->
       labelFormatter (traverse left) (traverse right)
@@ -197,6 +211,9 @@ let to_easy_format ?(indent_body=0) layout =
     | WithEOLComment (_, sub) ->
       traverse sub
     | Easy e -> e
+    | ForceBreak t ->
+      force_break := true;
+      traverse t
   in
   traverse layout
 
@@ -256,7 +273,10 @@ struct
   let atom ?loc str =
     let labelStringStyle = { Easy_format.atom_style = Some "atomClss" } in
     let layout = Easy (Easy_format.Atom(str, labelStringStyle)) in
-    source_map ?loc layout
+    let layout = source_map ?loc layout in
+    if String.contains str '\n'
+    then ForceBreak layout
+    else layout
 
   let makeList
       ?(newlinesAboveItems=0)

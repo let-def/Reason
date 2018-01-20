@@ -1075,6 +1075,7 @@ let isSequencey layout =
     | Layout.SourceMap (_, subLayoutNode) -> aux subLayoutNode
     | Layout.Sequence _ -> true
     | Layout.WithEOLComment (_, sub) -> aux sub
+    | Layout.ForceBreak sub -> aux sub
     | Layout.Label (_, _, _) -> false
     | Layout.Easy easy -> isListy easy
   in
@@ -1093,6 +1094,7 @@ let insertBlankLines n term =
       (Array.to_list (Array.make n (atom "")) @ [term])
 
 let rec append ?(space=false) txt = function
+  | Layout.ForceBreak sub -> Layout.ForceBreak (append ~space txt sub)
   | Layout.SourceMap (loc, sub) -> Layout.SourceMap (loc, append ~space txt sub)
   | Layout.Sequence (config, l) when snd config.wrap <> "" ->
      let sep = if space then " " else "" in
@@ -1133,6 +1135,8 @@ let rec flattenCommentAndSep ?spaceBeforeSep:(spaceBeforeSep=false) ?sep = funct
     Layout.Sequence (listConfig, [flattenCommentAndSep ~spaceBeforeSep ?sep hd])
   | Layout.SourceMap (loc, sub) ->
      Layout.SourceMap (loc, flattenCommentAndSep ~spaceBeforeSep ?sep sub)
+  | Layout.ForceBreak sub ->
+     Layout.ForceBreak (flattenCommentAndSep ~spaceBeforeSep ?sep sub)
   | layout ->
      begin
        match sep with
@@ -1150,8 +1154,9 @@ let rec preOrderWalk f layout =
      let newRightLayout = preOrderWalk f right in
      Layout.Label (formatter, newLeftLayout, newRightLayout)
   | Layout.SourceMap (loc, sub) ->
-     let newSub = preOrderWalk f sub in
-     Layout.SourceMap (loc, newSub)
+     Layout.SourceMap (loc, preOrderWalk f sub)
+  | Layout.ForceBreak sub ->
+     Layout.ForceBreak (preOrderWalk f sub)
   | Layout.WithEOLComment (c, sub) ->
      let newSub = preOrderWalk f sub in
      Layout.WithEOLComment (c, newSub)
@@ -1222,6 +1227,8 @@ let rec prependSingleLineComment ?newlinesAboveDocComments:(newlinesAboveDocComm
      Layout.WithEOLComment (c, prependSingleLineComment ~newlinesAboveDocComments comment sub)
   | Layout.SourceMap (loc, sub) ->
      Layout.SourceMap (loc, prependSingleLineComment ~newlinesAboveDocComments comment sub)
+  | Layout.ForceBreak sub ->
+     Layout.ForceBreak (prependSingleLineComment ~newlinesAboveDocComments comment sub)
   | Layout.Sequence (config, hd::tl) when config.break = Always_rec->
      Layout.Sequence(config, (prependSingleLineComment ~newlinesAboveDocComments comment hd)::tl)
   | layout ->
@@ -1238,6 +1245,8 @@ let rec prependSingleLineComment ?newlinesAboveDocComments:(newlinesAboveDocComm
 let rec looselyAttachComment layout comment =
   let location = comment.Comment.location in
   match layout with
+  | Layout.ForceBreak sub ->
+     Layout.ForceBreak (looselyAttachComment sub comment)
   | Layout.SourceMap (loc, sub) ->
      Layout.SourceMap (loc, looselyAttachComment sub comment)
   | Layout.WithEOLComment (c, sub) ->
@@ -1290,6 +1299,8 @@ let rec looselyAttachComment layout comment =
 let rec insertSingleLineComment layout comment =
   let location = comment.Comment.location in
       match layout with
+      | Layout.ForceBreak sub ->
+         Layout.ForceBreak (insertSingleLineComment sub comment)
       | Layout.SourceMap (loc, sub) ->
          Layout.SourceMap (loc, insertSingleLineComment sub comment)
       | Layout.WithEOLComment (c, sub) ->
@@ -1348,6 +1359,8 @@ let rec attachCommentToNodeRight layout comment =
     Layout.Sequence ({config with wrap = (lwrap, rwrap)}, sub)
   | Layout.SourceMap (loc, sub) ->
      Layout.SourceMap (loc, attachCommentToNodeRight sub comment)
+  | Layout.ForceBreak (sub) ->
+     Layout.ForceBreak (attachCommentToNodeRight sub comment)
   | layout ->
        match Comment.category comment with
     | EndOfLine -> Layout.WithEOLComment (comment, layout)
@@ -1361,6 +1374,8 @@ let rec attachCommentToNodeLeft comment layout =
     Layout.Sequence ({config with wrap = (lwrap, rwrap)}, sub)
   | Layout.SourceMap (loc, sub) ->
      Layout.SourceMap (loc, attachCommentToNodeLeft comment sub )
+  | Layout.ForceBreak (sub) ->
+     Layout.ForceBreak (attachCommentToNodeLeft comment sub)
   | layout ->
      Layout.Label (inlineLabel, format_comment comment, layout)
 
@@ -1379,45 +1394,48 @@ let rec tryPerfectlyAttachComment layout = function
   | Some comment -> perfectlyAttachComment comment layout
 
 and perfectlyAttachComment comment = function
-     | Layout.Sequence (listConfig, subLayouts) ->
-        let distributeCommentIntoSubLayouts (i, processed, newComment) layout =
+  | Layout.Sequence (listConfig, subLayouts) ->
+    let distributeCommentIntoSubLayouts (i, processed, newComment) layout =
       let (layout, newComment) =
         tryPerfectlyAttachComment layout newComment in
       (i + 1, layout::processed, newComment)
-        in
+    in
     let (_, processed, consumed) =
       List.fold_left
         distributeCommentIntoSubLayouts
         (0, [], Some comment) (List.rev subLayouts)
     in
-        Layout.Sequence (listConfig, processed), consumed
-     | Layout.Label (labelFormatter, left, right) ->
+    Layout.Sequence (listConfig, processed), consumed
+  | Layout.Label (labelFormatter, left, right) ->
     let (newRight, comment) = perfectlyAttachComment comment right in
-        let (newLeft, comment) = tryPerfectlyAttachComment left comment in
-        Layout.Label (labelFormatter, newLeft, newRight), comment
-     | Layout.SourceMap (loc, subLayout) ->
-        if loc.loc_end.Lexing.pos_lnum = loc.loc_start.Lexing.pos_lnum &&
+    let (newLeft, comment) = tryPerfectlyAttachComment left comment in
+    Layout.Label (labelFormatter, newLeft, newRight), comment
+  | Layout.SourceMap (loc, subLayout) ->
+    if loc.loc_end.Lexing.pos_lnum = loc.loc_start.Lexing.pos_lnum &&
        comment.Comment.location.loc_start.Lexing.pos_cnum = loc.loc_end.Lexing.pos_cnum
     then
       (Layout.SourceMap (loc, makeList ~inline:(true, true) ~break:Layout.Always
-                    [unbreaklayout (attachCommentToNodeRight subLayout comment)]),
+                           [unbreaklayout (attachCommentToNodeRight subLayout comment)]),
        None)
-        else
+    else
       let (layout, comment) = perfectlyAttachComment comment subLayout in
       begin match comment with
-            | None -> (Layout.SourceMap (loc, layout), None)
-            | Some comment ->
+        | None -> (Layout.SourceMap (loc, layout), None)
+        | Some comment ->
           if comment.Comment.location.loc_end.Lexing.pos_cnum =
              loc.loc_start.Lexing.pos_cnum  then
             (Layout.SourceMap (loc, attachCommentToNodeLeft comment layout), None)
           else if comment.Comment.location.loc_start.Lexing.pos_cnum = loc.loc_end.Lexing.pos_cnum then
             (Layout.SourceMap (loc, attachCommentToNodeRight layout comment), None)
-               else
+          else
             (Layout.SourceMap (loc, layout), Some comment)
-          end
-     | Layout.WithEOLComment (c, sub) ->
+      end
+  | Layout.WithEOLComment (c, sub) ->
     let (processed, consumed) = perfectlyAttachComment comment sub in
     (Layout.WithEOLComment (c, processed), consumed)
+  | Layout.ForceBreak layout ->
+    let layout, comment = perfectlyAttachComment comment layout in
+    (Layout.ForceBreak layout, comment)
   | layout -> (layout, Some comment)
 
 (** [insertComment layout comment] inserts comment into layout*)
