@@ -87,6 +87,9 @@
   reason_layout
   reason_heuristics
   reason_location
+  reason_toolchain_conf
+  reason_toolchain_reason
+  reason_toolchain_ocaml
   reason_toolchain
   reason_config
   reason_pprint_ast
