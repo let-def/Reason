@@ -147,10 +147,6 @@ let mklocation loc_start loc_end = {
   loc_ghost = false;
 }
 
-let with_txt a txt = {
-    a with txt=txt;
-}
-
 let make_real_loc loc = {
     loc with loc_ghost = false
 }
@@ -449,12 +445,6 @@ let err loc s =
     Error(loc, (Syntax_error s))
   )
 
-let syntax_error_str loc msg =
-  if !Reason_config.recoverable then
-    Str.mk ~loc:loc (Pstr_extension (Reason_syntax_util.syntax_error_extension_node loc msg, []))
-  else
-    raise(Syntaxerr.Error(Syntaxerr.Other loc))
-
 let syntax_error () =
   raise Syntaxerr.Escape_error
 
@@ -475,58 +465,6 @@ let syntax_error_mod loc msg =
     Mty.extension ~loc (Reason_syntax_util.syntax_error_extension_node loc msg)
   else
     err loc msg
-
-let unclosed opening closing =
-  raise(Syntaxerr.Error(Syntaxerr.Unclosed(opening.loc, opening.txt,
-                                           closing.loc, closing.txt)))
-
-let unclosed_extension closing =
-  Reason_syntax_util.syntax_error_extension_node closing.loc ("Expecting \"" ^ closing.txt ^ "\"")
-
-let unclosed_mod opening closing =
-  if !Reason_config.recoverable then
-    mkmod(Pmod_extension (unclosed_extension closing))
-  else
-    unclosed opening closing
-
-let unclosed_cl opening closing =
-  if !Reason_config.recoverable then
-    mkclass(Pcl_extension (unclosed_extension closing))
-  else
-    unclosed opening closing
-
-let unclosed_mty opening closing =
-  if !Reason_config.recoverable then
-    mkmty(Pmty_extension (unclosed_extension closing))
-  else
-    unclosed opening closing
-
-let unclosed_cty opening closing =
-  if !Reason_config.recoverable then
-    mkcty(Pcty_extension (unclosed_extension closing))
-  else
-    unclosed opening closing
-
-let unclosed_exp opening closing =
-  if !Reason_config.recoverable then
-    mkexp(Pexp_extension (unclosed_extension closing))
-  else
-    unclosed opening closing
-
-let unclosed_pat opening closing =
-  if !Reason_config.recoverable then
-    mkpat(Ppat_extension (unclosed_extension closing))
-  else
-    unclosed opening closing
-
-let expecting nonterm =
-    raise Syntaxerr.(Error(Expecting(nonterm.loc, nonterm.txt)))
-
-let expecting_pat nonterm =
-  if !Reason_config.recoverable then
-    mkpat(Ppat_extension (Reason_syntax_util.syntax_error_extension_node nonterm.loc ("Expecting " ^ nonterm.txt)))
-  else
-    expecting nonterm
 
 let not_expecting start_pos end_pos nonterm =
     raise Syntaxerr.(Error(Not_expecting(mklocation start_pos end_pos, nonterm)))
@@ -1540,8 +1478,6 @@ mark_position_mod
   ( as_loc(mod_longident)
     { mkmod(Pmod_ident $1) }
   | module_expr_structure { $1 }
-  | as_loc(LPAREN) module_expr COLON module_type as_loc(error)
-    { unclosed_mod (with_txt $1 "(") (with_txt $5 ")")}
   | LPAREN module_complex_expr RPAREN
     { $2 }
   | LPAREN RPAREN
@@ -1565,16 +1501,6 @@ mark_position_mod
     }
   | module_expr module_arguments
     { List.fold_left mkmod_app $1 $2 }
-  | module_expr as_loc(LPAREN) module_expr as_loc(error)
-    { unclosed_mod (with_txt $2 "(") (with_txt $4 ")") }
-  | as_loc(LPAREN) module_expr as_loc(error)
-    { unclosed_mod (with_txt $1 "(") (with_txt $3 ")") }
-  | as_loc(LPAREN) VAL expr COLON as_loc(error)
-    { unclosed_mod (with_txt $1 "(") (with_txt $5 ")") }
-  | as_loc(LPAREN) VAL expr COLONGREATER as_loc(error)
-    { unclosed_mod (with_txt $1 "(") (with_txt $5 ")") }
-  | as_loc(LPAREN) VAL expr as_loc(error)
-    { unclosed_mod (with_txt $1 "(") (with_txt $4 ")") }
   | attribute module_expr %prec attribute_precedence
     { {$2 with pmod_attributes = $1 :: $2.pmod_attributes} }
   ) {$1};
@@ -1656,24 +1582,6 @@ structure:
   | (* Empty *) { [] }
   | structure_item { $1 }
   | structure_item SEMI structure { $1 @ $3 }
-  | as_loc(error) structure
-    { let menhirError = Reason_syntax_util.findMenhirErrorMessage $1.loc in
-      match menhirError with
-      | MenhirMessagesError errMessage -> (syntax_error_str errMessage.loc errMessage.msg) :: $2
-      | _ -> (syntax_error_str $1.loc "Invalid statement") :: $2
-    }
-  | as_loc(error) SEMI structure
-    { let menhirError = Reason_syntax_util.findMenhirErrorMessage $1.loc in
-      match menhirError with
-      | MenhirMessagesError errMessage -> (syntax_error_str errMessage.loc errMessage.msg) :: $3
-      | _ -> (syntax_error_str $1.loc "Invalid statement") :: $3
-    }
-  | as_loc(structure_item) error structure
-    { let menhirError = Reason_syntax_util.findMenhirErrorMessage $1.loc in
-      match menhirError with
-      | MenhirMessagesError errMessage -> (syntax_error_str errMessage.loc errMessage.msg) :: $3
-      | _ -> (syntax_error_str $1.loc "Statement has to end with a semicolon") :: $3
-    }
 ;
 
 opt_LET_MODULE_ident:
@@ -1788,12 +1696,8 @@ mark_position_mty
       | _ -> syntax_error_mod $1.loc "Expecting a simple module type"
     }
   | module_type_signature { $1 }
-  | as_loc(LPAREN) module_type as_loc(error)
-    { unclosed_mty (with_txt $1 "(") (with_txt $3 ")")}
   | as_loc(mty_longident)
     { mkmty (Pmty_ident $1) }
-  | as_loc(LBRACE) signature as_loc(error)
-    { unclosed_mty (with_txt $1 "{") (with_txt $3 "}")}
   | extension
     { mkmty (Pmty_extension $1) }
   ) {$1};
@@ -2087,16 +1991,10 @@ mark_position_cl
     { mkclass(Pcl_constr($1, [])) }
   | class_body_expr
     { $1 }
-  | as_loc(LBRACE) class_expr_lets_and_rest as_loc(error)
-    { unclosed_cl (with_txt $1 "{") (with_txt $3 "}") }
   | LPAREN class_expr COLON class_constructor_type RPAREN
     { mkclass(Pcl_constraint($2, $4)) }
-  | as_loc(LPAREN) class_expr COLON class_constructor_type as_loc(error)
-    { unclosed_cl (with_txt $1 "(") (with_txt $5 ")") }
   | LPAREN class_expr RPAREN
     { $2 }
-  | as_loc(LPAREN) class_expr as_loc(error)
-    { unclosed_cl (with_txt $1 "(") (with_txt $3 ")") }
   ) {$1};
 
 %inline class_body_expr: LBRACE class_expr_lets_and_rest RBRACE { $2 };
@@ -2327,8 +2225,6 @@ class_type_body:
       let ct = mkcty ~loc (Pcty_signature $3) in
       {ct with pcty_attributes = [uncurry_payload loc]}
     }
-  | as_loc(LBRACE) class_sig_body as_loc(error)
-    { unclosed_cty (with_txt $1 "{") (with_txt $3 "}") }
 ;
 
 class_sig_body_fields:
@@ -2465,8 +2361,6 @@ braced_expr:
 mark_position_exp
   ( LBRACE seq_expr RBRACE
     { add_brace_attr $2 }
-  | LBRACE as_loc(seq_expr) error
-    { syntax_error_exp $2.loc "SyntaxError in block" }
   | LBRACE DOTDOTDOT expr_optional_constraint COMMA? RBRACE
     { let loc = mklocation $symbolstartpos $endpos in
       let msg = "Record construction must have at least one field explicitly set" in
@@ -2477,21 +2371,15 @@ mark_position_exp
       raise_record_trailing_semi_error loc }
   | LBRACE record_expr RBRACE
     { let (exten, fields) = $2 in mkexp (Pexp_record(fields, exten)) }
-  | as_loc(LBRACE) record_expr as_loc(error)
-    { unclosed_exp (with_txt $1 "{") (with_txt $3 "}")}
   | LBRACE record_expr_with_string_keys RBRACE
     { let loc = mklocation $symbolstartpos $endpos in
       let (exten, fields) = $2 in
       mkexp ~loc (Pexp_extension (mkloc ("bs.obj") loc,
              PStr [mkstrexp (mkexp ~loc (Pexp_record(fields, exten))) []]))
     }
-  | as_loc(LBRACE) record_expr_with_string_keys as_loc(error)
-    { unclosed_exp (with_txt $1 "{") (with_txt $3 "}")}
   (* Todo: Why is this not a simple_expr? *)
   | LBRACE object_body RBRACE
     { mkexp (Pexp_object $2) }
-  | as_loc(LBRACE) object_body as_loc(error)
-    { unclosed_exp (with_txt $1 "{") (with_txt $3 "}") }
 ) {$1};
 
 seq_expr_no_seq:
@@ -2855,8 +2743,6 @@ mark_position_exp
   | TRY optional_expr_extension simple_expr_no_constructor
     LBRACE match_cases(seq_expr) RBRACE
     { $2 (mkexp (Pexp_try ($3, $5))) }
-  | TRY optional_expr_extension simple_expr_no_constructor WITH error
-    { syntax_error_exp (mklocation $startpos($5) $endpos($5)) "Invalid try with"}
   | IF optional_expr_extension parenthesized_expr
        simple_expr ioption(preceded(ELSE,expr))
     { $2 (mkexp (Pexp_ifthenelse($3, $4, $5))) }
@@ -2876,8 +2762,6 @@ mark_position_exp
       | _ -> $2
       in mkinfix $1 op $3
     }
-  | E as_loc(infix_operator) error
-    { expecting (with_txt $2 "expression after infix operator") }
   | as_loc(subtractive) expr %prec prec_unary
     { mkuminus $1 $2 }
   | as_loc(additive) expr %prec prec_unary
@@ -3011,14 +2895,10 @@ parenthesized_expr:
     { mkexp (Pexp_variant ($1, None)) }
   | LPAREN expr_list RPAREN
     { may_tuple $startpos $endpos $2 }
-  | as_loc(LPAREN) expr_list as_loc(error)
-    { unclosed_exp (with_txt $1 "(") (with_txt $3 ")") }
   | E as_loc(POSTFIXOP)
     { mkexp(Pexp_apply(mkoperator $2, [Nolabel, $1])) }
   | as_loc(mod_longident) DOT LPAREN expr_list RPAREN
     { mkexp(Pexp_open(Fresh, $1, may_tuple $startpos($3) $endpos($5) $4)) }
-  | mod_longident DOT as_loc(LPAREN) expr_list as_loc(error)
-    { unclosed_exp (with_txt $3 "(") (with_txt $5 ")") }
   | E DOT as_loc(label_longident)
     { mkexp(Pexp_field($1, $3)) }
   | as_loc(mod_longident) DOT LBRACE RBRACE
@@ -3032,15 +2912,11 @@ parenthesized_expr:
       let exp = Pexp_ident(array_function ~loc "Array" "get") in
       mkexp(Pexp_apply(mkexp ~ghost:true ~loc exp, [Nolabel,$1; Nolabel,$3]))
     }
-  | E as_loc(LBRACKET) expr as_loc(error)
-    { unclosed_exp (with_txt $2 "(") (with_txt $4 ")") }
   | E DOT LBRACKET expr RBRACKET
     { let loc = mklocation $symbolstartpos $endpos in
       let exp = Pexp_ident(array_function ~loc "String" "get") in
       mkexp(Pexp_apply(mkexp ~ghost:true ~loc exp, [Nolabel,$1; Nolabel,$4]))
     }
-  | E DOT as_loc(LBRACKET) expr as_loc(error)
-    { unclosed_exp (with_txt $3 "[") (with_txt $5 "]") }
   | E bigarray_access
     { let loc = mklocation $symbolstartpos $endpos in
       bigarray_get ~loc $1 $2 }
@@ -3050,8 +2926,6 @@ parenthesized_expr:
       let rec_exp = mkexp ~loc (Pexp_record (fields, exten)) in
       mkexp(Pexp_open(Fresh, $1, rec_exp))
     }
-  | mod_longident DOT as_loc(LBRACE) record_expr as_loc(error)
-    { unclosed_exp (with_txt $3 "{") (with_txt $5 "}") }
   | as_loc(mod_longident) DOT LBRACE record_expr_with_string_keys RBRACE
     { let (exten, fields) = $4 in
       let loc = mklocation $symbolstartpos $endpos in
@@ -3060,15 +2934,11 @@ parenthesized_expr:
       in
       mkexp(Pexp_open(Fresh, $1, rec_exp))
     }
-  | mod_longident DOT as_loc(LBRACE) record_expr_with_string_keys as_loc(error)
-    { unclosed_exp (with_txt $3 "{") (with_txt $5 "}") }
   | as_loc(mod_longident) DOT LBRACKETBAR expr_list BARRBRACKET
     { let loc = mklocation $symbolstartpos $endpos in
       let rec_exp = Exp.mk ~loc ~attrs:[] (Pexp_array $4) in
       mkexp(Pexp_open(Fresh, $1, rec_exp))
     }
-  | mod_longident DOT as_loc(LBRACKETBAR) expr_list as_loc(error)
-    { unclosed_exp (with_txt $3 "[|") (with_txt $5 "|]") }
   (* Parse Module.[<Component> <div/> </Component>] *)
   | as_loc(mod_longident) DOT LBRACKETLESS jsx_without_leading_less RBRACKET
     { let seq, ext_opt = [$4], None in
@@ -3107,8 +2977,6 @@ parenthesized_expr:
       let exp = Exp.mk ~loc ~attrs:[] (Pexp_override $4) in
       mkexp (Pexp_open(Fresh, $1, exp))
     }
-  | mod_longident DOT as_loc(LBRACELESS) field_expr_list COMMA? as_loc(error)
-    { unclosed_exp (with_txt $3 "{<") (with_txt $6 ">}") }
   | E SHARP label
     { mkexp (Pexp_send($1, $3)) }
   | E as_loc(SHARPOP) simple_expr_no_call
@@ -3124,8 +2992,6 @@ parenthesized_expr:
         mkexp ~loc (Pexp_constraint (mkexp ~ghost:true ~loc (Pexp_pack $5),
                                      mktyp ~ghost:true ~loc (Ptyp_package $7)))))
     }
-  | mod_longident DOT as_loc(LPAREN) MODULE module_expr COLON as_loc(error)
-    { unclosed_exp (with_txt $3 "(") (with_txt $7 ")")}
   | extension
     { mkexp (Pexp_extension $1) }
 ;
@@ -3202,8 +3068,6 @@ simple_expr_direct_argument:
     }
   | LBRACELESS field_expr_list COMMA? GREATERRBRACE
     { mkexp (Pexp_override $2) }
-  | as_loc(LBRACELESS) field_expr_list COMMA? as_loc(error)
-    { unclosed_exp (with_txt $1 "{<") (with_txt $4 ">}" ) }
   | LBRACELESS GREATERRBRACE
     { mkexp (Pexp_override [])}
   | LPAREN MODULE module_expr RPAREN
@@ -3213,8 +3077,6 @@ simple_expr_direct_argument:
       mkexp (Pexp_constraint (mkexp ~ghost:true ~loc (Pexp_pack $3),
                               mktyp ~ghost:true ~loc (Ptyp_package $5)))
     }
-  | as_loc(LPAREN) MODULE module_expr COLON as_loc(error)
-    { unclosed_exp (with_txt $1 "(") (with_txt $5 ")") }
 ;
 
 %inline non_labelled_expr_comma_list:
@@ -3667,8 +3529,6 @@ mark_position_pat
   | pattern_without_or AS as_loc(val_ident)
     { mkpat(Ppat_alias($1, $3)) }
 
-  | pattern_without_or AS as_loc(error)
-    { expecting_pat (with_txt $3 "identifier") }
   (**
     * Parses a (comma-less) list of patterns into a tuple, or a single pattern
     * (if there is only one item in the list). This is kind of sloppy as there
@@ -3700,17 +3560,10 @@ mark_position_pat
     { raiseSyntaxErrorFromSyntaxUtils $2.loc
         ":: is not supported in Reason, please use [hd, ...tl] instead" }
 
-  | pattern_without_or COLONCOLON as_loc(error)
-    { expecting_pat (with_txt $3 "pattern") }
-
   | LPAREN COLONCOLON RPAREN LPAREN pattern_without_or COMMA pattern_without_or RPAREN
     { let loc = mklocation $symbolstartpos $endpos in
       mkpat_cons (mkpat ~ghost:true ~loc (Ppat_tuple[$5;$7])) loc
     }
-
-  | as_loc(LPAREN) COLONCOLON RPAREN LPAREN
-      pattern_without_or COMMA pattern_without_or as_loc(error)
-    { unclosed_pat (with_txt $1 "(") (with_txt $8 ")") }
 
   | EXCEPTION pattern_without_or %prec prec_constr_appl
     { mkpat(Ppat_exception $2) }
@@ -3764,8 +3617,6 @@ mark_position_pat
     { mkpat (Ppat_variant ($1, None)) }
   | SHARP type_longident
     { mkpat (Ppat_type ($2)) }
-  | as_loc(LBRACKETBAR) pattern_comma_list SEMI? as_loc(error)
-    { unclosed_pat (with_txt $1 "[|") (with_txt $4 "|]") }
   | LPAREN lseparated_nonempty_list(COMMA, pattern_optional_constraint) COMMA? RPAREN
     { match $2 with
       | [] -> (* This shouldn't be possible *)
@@ -3774,12 +3625,6 @@ mark_position_pat
       | [hd] -> hd
       | _ :: _ -> mkpat (Ppat_tuple $2)
     }
-  | as_loc(LPAREN) pattern as_loc(error)
-    { unclosed_pat (with_txt $1 "(") (with_txt $3 ")") }
-  | as_loc(LPAREN) pattern COLON core_type as_loc(error)
-    { unclosed_pat (with_txt $1 "(") (with_txt $5 ")") }
-  | LPAREN pattern COLON as_loc(error)
-    { expecting_pat (with_txt $4 "type") }
   | LPAREN MODULE as_loc(UIDENT) RPAREN
     { mkpat(Ppat_unpack($3)) }
   | simple_pattern_not_ident_
@@ -3813,15 +3658,11 @@ simple_pattern_not_ident_:
 %inline record_pattern:
     LBRACE lbl_pattern_list RBRACE
     { let (fields, closed) = $2 in mkpat (Ppat_record (fields, closed)) }
-  | as_loc(LBRACE) lbl_pattern_list as_loc(error)
-    { unclosed_pat (with_txt $1 "{") (with_txt $3 "}") }
 ;
 
 %inline list_pattern:
     LBRACKET pattern_comma_list_extension RBRACKET
     { make_real_pat (mktailpat_extension (mklocation $startpos($2) $endpos($2)) $2) }
-  | as_loc(LBRACKET) pattern_comma_list_extension as_loc(error)
-    { unclosed_pat (with_txt $1 "[") (with_txt $3 "]") }
 ;
 
 %inline array_pattern:
