@@ -498,30 +498,6 @@ let apply_mapper_to_toplevel_phrase toplevel_phrase mapper =
 let apply_mapper_to_use_file use_file mapper =
   List.map (fun x -> apply_mapper_to_toplevel_phrase x mapper) use_file
 
-(* The following logic defines our own Error object
- * and register it with ocaml so it knows how to print it
- *)
-
-type error = Syntax_error of string
-
-exception Error of Location.t * error
-
-let report_error ppf error =
-  let pp = match error with
-  | Error (loc, (Syntax_error err)) ->
-    Location.error_of_printer loc (fun ppf e ->
-      Format.(fprintf ppf "%s" e)) err
-  | Syntaxerr.Error(err) ->
-    Location.error_of_printer
-      (Syntaxerr.location_of_error err)
-      Syntaxerr.report_error err
-  | _ ->
-    Format.eprintf
-      "Unknown error: please file an issue at github.com/facebook/reason@.";
-    exit 1
-  in
-  Format.fprintf ppf "@[%a@]@." Location.report_error pp
-
 let map_first f = function
   | [] -> invalid_arg "Syntax_util.map_first: empty list"
   | x :: xs -> f x :: xs
