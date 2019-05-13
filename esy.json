@@ -10,6 +10,7 @@
     "@opam/utop": " >= 1.17.0 < 2.3.0",
     "@opam/merlin-extend": " >= 0.3",
     "@opam/result": "*",
+    "@opam/fix": "*",
     "@opam/ocaml-migrate-parsetree": "*",
     "@opam/dune": "*"
   },
