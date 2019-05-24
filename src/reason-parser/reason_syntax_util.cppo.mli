@@ -15,6 +15,8 @@
 *)
 open Migrate_parsetree
 
+open Migrate_parsetree
+
 val ml_to_reason_swap : string -> string
 
 val escape_string : string -> string
